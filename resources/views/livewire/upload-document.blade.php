@@ -39,18 +39,22 @@
 
         <div class="flex items-center gap-3">
             <button type="submit"
-                    @disabled(! $file || $busy)
-                    class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
-                @if ($busy)
-                    Đang xử lý 7 stages…
-                @else
-                    Upload + OCR
-                @endif
+                    wire:loading.attr="disabled"
+                    wire:target="submit"
+                    @disabled(! $file)
+                    class="inline-flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
+                <svg wire:loading wire:target="submit" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4zm2 5.3A7.96 7.96 0 014 12H0c0 3 1.1 5.8 3 7.9l3-2.6z"></path>
+                </svg>
+                <span wire:loading.remove wire:target="submit">Upload + OCR</span>
+                <span wire:loading wire:target="submit">Đang chạy harness 7 stages…</span>
             </button>
 
-            @if ($busy)
-                <p class="text-xs text-gray-500">3 LLM calls ~30-45s. Đừng đóng tab.</p>
-            @endif
+            <p class="text-xs text-gray-500" wire:loading wire:target="submit">
+                3 LLM calls ~30-45s. Vui lòng đừng đóng tab.
+            </p>
         </div>
     </form>
 

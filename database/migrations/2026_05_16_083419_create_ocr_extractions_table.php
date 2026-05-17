@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('ocr_extractions', function (Blueprint $table) {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('document_id')->comment('BKM01 no FK constraint');
-            $table->char('language_detected', 4)->nullable()->comment('vi|en|zh|und');
+            $table->string('language_detected', 10)->nullable()->comment('vi|en|zh|mixed|und');
             $table->string('doc_type', 50)->nullable()->comment('cccd|passport|gpkd|contract_*|invoice|...');
             $table->unsignedSmallInteger('page_count')->default(1);
             $table->longText('text_full')->nullable()->comment('RAW text — KSNB copy-paste (PII)');

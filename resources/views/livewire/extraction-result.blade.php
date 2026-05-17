@@ -34,8 +34,12 @@
 
     @if ($doc->status === 'failed')
         <div class="rounded-md bg-red-50 border border-red-200 p-4">
-            <p class="font-semibold text-red-800">Pipeline failed</p>
-            <p class="text-sm text-red-700 mt-1">{{ $doc->error_message }}</p>
+            <p class="font-semibold text-red-800">Không xử lý được tài liệu này</p>
+            <p class="text-sm text-red-700 mt-1">
+                Tài liệu có thể không phải loại được hỗ trợ, ảnh quá mờ, hoặc dịch vụ OCR
+                đang gặp sự cố. Vui lòng thử lại với file khác hoặc liên hệ kỹ thuật nếu
+                vấn đề tiếp diễn.
+            </p>
         </div>
     @elseif ($doc->status === 'processing' || $doc->status === 'pending')
         <div class="rounded-md bg-blue-50 border border-blue-200 p-4">

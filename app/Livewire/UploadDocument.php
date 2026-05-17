@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Services\Ocr\DocumentUploadService;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -35,7 +36,14 @@ class UploadDocument extends Component
             $this->redirect(route('ocr.result', ['id' => $doc->id]), navigate: true);
         } catch (\Throwable $e) {
             $this->busy = false;
-            $this->errorMessage = $e->getMessage();
+            // Log full exception cho dev/ops debug, KSNB chỉ thấy message thân thiện.
+            Log::error('upload.failed', [
+                'exception' => class_basename($e),
+                'message' => $e->getMessage(),
+                'file_name' => $this->file?->getClientOriginalName(),
+            ]);
+            $this->errorMessage = 'Không xử lý được tài liệu này. Vui lòng thử lại hoặc đổi file khác. '
+                . 'Nếu vẫn lỗi, liên hệ kỹ thuật.';
         }
     }
 

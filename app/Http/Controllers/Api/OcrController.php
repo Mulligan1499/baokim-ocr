@@ -41,8 +41,6 @@ class OcrController extends Controller
         @set_time_limit(0);
 
         $apiKeyLabel = $request->attributes->get('api_key_label');
-        Log::info(111);
-        Log::info($apiKeyLabel);
 
         [$doc, $isDuplicate] = $this->uploadService->handle(
             $request->file('file'),
