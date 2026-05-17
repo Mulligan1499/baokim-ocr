@@ -1,0 +1,23 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('ocr_user_actions', function (Blueprint $table) {
+            $table->text('note')->nullable()->after('final_value')
+                ->comment('Free-text feedback từ KSNB. Dùng với action_type=overall_comment hoặc note kèm action khác.');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('ocr_user_actions', function (Blueprint $table) {
+            $table->dropColumn('note');
+        });
+    }
+};

@@ -15,6 +15,7 @@ class OcrUserAction extends Model
     public const ACTION_SKIP = 'skip';
     public const ACTION_MARK_WRONG = 'mark_wrong';
     public const ACTION_VIEW_ONLY = 'view_only';
+    public const ACTION_OVERALL_COMMENT = 'overall_comment';
 
     protected $fillable = [
         'document_id',
@@ -22,6 +23,7 @@ class OcrUserAction extends Model
         'action_type',
         'original_value',
         'final_value',
+        'note',
         'session_id',
         'duration_ms',
         'ksnb_user_label',

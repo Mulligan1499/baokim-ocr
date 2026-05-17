@@ -3,13 +3,16 @@
 namespace App\Livewire;
 
 use App\Models\OcrDocument;
+use App\Models\OcrUserAction;
 use App\Repositories\OcrUserActionRepository;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Validate;
 use Livewire\Component;
 
 /**
  * Hiển thị kết quả OCR + capture implicit action của KSNB (copy raw,
- * edit then copy, skip, mark wrong) làm input cho feedback loop.
+ * edit then copy, skip, mark wrong) + overall comment làm input cho
+ * feedback loop agent.
  *
  * Mỗi action gửi qua wire method `recordAction` → ghi vào ocr_user_actions.
  * Agent `ocr:analyze-actions` đọc table này để propose skill update.
@@ -21,6 +24,10 @@ class ExtractionResult extends Component
 
     /** @var array<string, array{value:string, edited_value:string, action:?string}> */
     public array $fieldState = [];
+
+    #[Validate('nullable|string|max:2000')]
+    public string $overallNote = '';
+    public bool $overallNoteSubmitted = false;
 
     public function mount(int $id): void
     {
@@ -37,30 +44,56 @@ class ExtractionResult extends Component
         }
     }
 
+    /**
+     * Wire from Livewire frontend khi KSNB click Copy/Skip/Wrong.
+     * Note edited_value đến từ frontend (Livewire wire:model sync).
+     */
     public function recordAction(
         string $fieldKey,
         string $actionType,
-        ?string $finalValue,
         ?int $durationMs,
         OcrUserActionRepository $actions,
     ): void {
         $original = $this->fieldState[$fieldKey]['value'] ?? null;
+        $final = $this->fieldState[$fieldKey]['edited_value'] ?? null;
 
         $actions->create([
             'document_id' => $this->doc->id,
             'field_key' => $fieldKey,
             'action_type' => $actionType,
             'original_value' => $original,
-            'final_value' => $finalValue,
+            'final_value' => $actionType === OcrUserAction::ACTION_COPY_RAW
+                || $actionType === OcrUserAction::ACTION_EDIT_THEN_COPY
+                ? $final : null,
             'session_id' => $this->sessionId,
             'duration_ms' => $durationMs,
             'ksnb_user_label' => 'web-ui',
         ]);
 
         $this->fieldState[$fieldKey]['action'] = $actionType;
-        if ($finalValue !== null) {
-            $this->fieldState[$fieldKey]['edited_value'] = $finalValue;
+    }
+
+    public function submitOverallComment(OcrUserActionRepository $actions): void
+    {
+        $this->validate();
+
+        if (trim($this->overallNote) === '') {
+            return;
         }
+
+        $actions->create([
+            'document_id' => $this->doc->id,
+            'field_key' => '_global',
+            'action_type' => OcrUserAction::ACTION_OVERALL_COMMENT,
+            'original_value' => null,
+            'final_value' => null,
+            'note' => $this->overallNote,
+            'session_id' => $this->sessionId,
+            'duration_ms' => null,
+            'ksnb_user_label' => 'web-ui',
+        ]);
+
+        $this->overallNoteSubmitted = true;
     }
 
     public function render()

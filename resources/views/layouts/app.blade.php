@@ -16,7 +16,8 @@
                 <span class="ml-2 text-xs font-normal text-gray-500">KSNB onboarding</span>
             </a>
             <nav class="flex items-center gap-4 text-sm text-gray-600">
-                <a href="/ocr" class="hover:text-gray-900">Upload</a>
+                <a href="/ocr" wire:navigate class="hover:text-gray-900">Upload</a>
+                <a href="/ocr/history" wire:navigate class="hover:text-gray-900">Lịch sử</a>
                 <a href="/api/documentation" target="_blank" class="hover:text-gray-900">API docs</a>
             </nav>
         </div>
