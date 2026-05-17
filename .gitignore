@@ -25,3 +25,16 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# PII / tài liệu test có chứa thông tin cá nhân thật — KHÔNG commit
+/Employment Contract-*.pdf
+/*-CCCD*.jpg
+/*-CCCD*.png
+/*-CCCD*.pdf
+/storage/app/private/ocr/
+/storage/api-docs/
+/storage/reports/
+m1-test.png
+
+# Agent-created reports (markdown skill-update reports)
+/reports/skill-update-*.md
