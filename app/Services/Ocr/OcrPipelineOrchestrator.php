@@ -262,23 +262,8 @@ class OcrPipelineOrchestrator
 
     private function getCriticalFields(string $docType): array
     {
-        // Mirror of Stage2VisionExtractorService::CRITICAL_FIELDS for aggregator weighting.
-        return match ($docType) {
-            'cccd' => ['so_cccd', 'ho_ten', 'ngay_sinh', 'ngay_cap'],
-            'passport' => ['passport_number', 'full_name', 'date_of_birth', 'expiry_date', 'nationality'],
-            'gpkd' => ['mst', 'ten_doanh_nghiep', 'dia_chi', 'nguoi_dai_dien', 'ngay_cap'],
-            'contract_vi' => ['ben_a', 'ben_b', 'ngay_ky', 'gia_tri'],
-            'contract_en' => ['party_a', 'party_b', 'signing_date', 'value'],
-            'contract_zh' => ['party_a', 'party_b', 'signing_date', 'value'],
-            'invoice' => ['invoice_number', 'total_amount', 'invoice_date', 'mst'],
-            'legal_doc' => ['document_number', 'issuing_authority', 'issue_date'],
-            'customs_declaration' => ['declaration_number', 'declaration_date', 'importer', 'exporter', 'hs_code'],
-            'bill_of_lading' => ['bl_number', 'shipper', 'consignee', 'vessel_name', 'container_number'],
-            'aml_charter' => ['document_number', 'effective_date', 'issuing_authority'],
-            'power_of_attorney' => ['principal', 'attorney', 'scope', 'effective_date', 'expiry_date'],
-            'labor_contract' => ['employer', 'employee', 'position', 'salary', 'signing_date'],
-            'financial_report' => ['reporting_period', 'total_revenue', 'net_profit', 'total_assets', 'currency'],
-            default => [],
-        };
+        // Đọc từ config/ocr_doc_taxonomy.php — single source of truth.
+        // Stage 2 service cũng đọc cùng config để critical fields đồng bộ.
+        return config("ocr_doc_taxonomy.{$docType}.critical", []);
     }
 }

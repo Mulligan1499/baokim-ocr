@@ -91,14 +91,42 @@ return [
     'party_b_address' => 'Địa chỉ Bên B',
     'party_a_representative' => 'Người đại diện Bên A',
     'party_b_representative' => 'Người đại diện Bên B',
+    'party_a_tax_code' => 'MST Bên A',
+    'party_b_tax_code' => 'MST Bên B',
+    'mst_ben_a' => 'MST Bên A',
+    'mst_ben_b' => 'MST Bên B',
+    'dia_chi_ben_a' => 'Địa chỉ Bên A',
+    'dia_chi_ben_b' => 'Địa chỉ Bên B',
+    'nguoi_dai_dien_ben_a' => 'Người đại diện Bên A',
+    'nguoi_dai_dien_ben_b' => 'Người đại diện Bên B',
+    // Terms
     'payment_term' => 'Điều khoản thanh toán',
     'delivery_term' => 'Điều khoản giao hàng',
     'shipment_term' => 'Điều khoản vận chuyển',
+    'liability_term' => 'Điều khoản trách nhiệm',
+    'dieu_khoan_thanh_toan' => 'Điều khoản thanh toán',
+    'dieu_khoan_giao_hang' => 'Điều khoản giao hàng',
+    'dieu_khoan_van_chuyen' => 'Điều khoản vận chuyển',
+    'dieu_khoan_trach_nhiem' => 'Điều khoản trách nhiệm',
     'contract_term' => 'Thời hạn hợp đồng',
+    'thoi_han_hop_dong' => 'Thời hạn hợp đồng',
     'effective_date' => 'Ngày hiệu lực',
+    // Goods
+    'danh_muc_hang_hoa' => 'Danh mục hàng hóa',
+    'mo_ta_hang_hoa' => 'Mô tả hàng hóa',
+    'so_luong' => 'Số lượng',
+    'don_gia' => 'Đơn giá',
+    'tong_gia_tri' => 'Tổng giá trị',
+    'don_vi_do_luong' => 'Đơn vị đo lường',
+    'unit_of_measurement' => 'Đơn vị đo lường',
+    'item_description' => 'Mô tả mặt hàng',
+    // Payment info
     'payment_bank_name' => 'Ngân hàng thanh toán',
     'payment_bank_account_name' => 'Chủ tài khoản',
     'payment_bank_account_number' => 'Số tài khoản',
+    'ngan_hang_thanh_toan' => 'Ngân hàng thanh toán',
+    'chu_tai_khoan' => 'Chủ tài khoản',
+    'thong_tin_tai_khoan_thu_huong' => 'Tài khoản thụ hưởng',
 
     // ===== Hóa đơn / Invoice =====
     'invoice_number' => 'Số hóa đơn',
@@ -181,6 +209,51 @@ return [
     'total_assets' => 'Tổng tài sản',
     'total_liabilities' => 'Tổng nợ phải trả',
     'equity' => 'Vốn chủ sở hữu',
+
+    // ===== Customs declaration extra =====
+    'goods_description' => 'Mô tả hàng hóa',
+    'total_value' => 'Tổng giá trị',
+
+    // ===== Bill of Lading extra =====
+    'gross_weight' => 'Trọng lượng cả bì',
+    'net_weight' => 'Trọng lượng tịnh',
+    'place_of_loading' => 'Nơi xếp hàng',
+
+    // ===== Legal doc / AML extra =====
+    'subject' => 'Chủ đề',
+    'parties' => 'Các bên',
+    'company_name' => 'Tên công ty',
+    'company_tax_code' => 'MST công ty',
+
+    // ===== Power of attorney extra =====
+    'document_date' => 'Ngày văn bản',
+    'principal_address' => 'Địa chỉ bên ủy quyền',
+    'attorney_address' => 'Địa chỉ bên nhận ủy quyền',
+    'witnesses' => 'Người làm chứng',
+    'work_scope' => 'Phạm vi công việc',
+
+    // ===== Labor contract extra =====
+    'contract_start_date' => 'Ngày bắt đầu hợp đồng',
+    'contract_end_date' => 'Ngày kết thúc hợp đồng',
+    'work_location' => 'Địa điểm làm việc',
+    'working_hours' => 'Giờ làm việc',
+    'employer_address' => 'Địa chỉ công ty',
+    'employee_id_number' => 'Số CMND/CCCD/HC nhân viên',
+    'employer_mst' => 'MST công ty',
+    'payment_method' => 'Hình thức trả lương',
+    'payment_date' => 'Ngày trả lương',
+    'trial_period_salary' => 'Lương thử việc',
+    'trial_period_duration' => 'Thời gian thử việc',
+    'benefits' => 'Phúc lợi',
+    'job_scope' => 'Phạm vi công việc',
+    'job_description' => 'Mô tả công việc',
+
+    // ===== Financial report extra =====
+    'cost_of_goods_sold' => 'Giá vốn hàng bán',
+    'operating_expenses' => 'Chi phí hoạt động',
+    'gross_profit' => 'Lợi nhuận gộp',
+    'report_date' => 'Ngày báo cáo',
+    'auditor' => 'Đơn vị kiểm toán',
 
     // ===== Generic / shared =====
     'email' => 'Email',

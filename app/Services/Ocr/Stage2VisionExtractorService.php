@@ -7,31 +7,13 @@ use App\Services\Llm\LlmClient;
 
 class Stage2VisionExtractorService
 {
-    /**
-     * Critical fields per doc_type (default from stage2_vision.md).
-     */
-    private const CRITICAL_FIELDS = [
-        'cccd' => ['so_cccd', 'ho_ten', 'ngay_sinh', 'ngay_cap'],
-        'passport' => ['passport_number', 'full_name', 'date_of_birth', 'expiry_date', 'nationality'],
-        'gpkd' => ['mst', 'ten_doanh_nghiep', 'dia_chi', 'nguoi_dai_dien', 'ngay_cap'],
-        'contract_vi' => ['ben_a', 'ben_b', 'ngay_ky', 'gia_tri'],
-        'contract_en' => ['party_a', 'party_b', 'signing_date', 'value'],
-        'contract_zh' => ['party_a', 'party_b', 'signing_date', 'value'],
-        'invoice' => ['invoice_number', 'total_amount', 'invoice_date', 'mst'],
-        'legal_doc' => ['document_number', 'issuing_authority', 'issue_date'],
-        'customs_declaration' => ['declaration_number', 'declaration_date', 'importer', 'exporter', 'hs_code'],
-        'bill_of_lading' => ['bl_number', 'shipper', 'consignee', 'vessel_name', 'container_number'],
-        'aml_charter' => ['document_number', 'effective_date', 'issuing_authority'],
-        'power_of_attorney' => ['principal', 'attorney', 'scope', 'effective_date', 'expiry_date'],
-        'labor_contract' => ['employer', 'employee', 'position', 'salary', 'signing_date'],
-        'financial_report' => ['reporting_period', 'total_revenue', 'net_profit', 'total_assets', 'currency'],
-        'other' => [],
-    ];
-
     public function __construct(private LlmClient $llm) {}
 
     /**
      * Extract a document. Returns parsed structure + _meta.
+     *
+     * Critical + normal fields đọc từ [config/ocr_doc_taxonomy.php](config/ocr_doc_taxonomy.php)
+     * — KSNB survey driven, có thể tinh chỉnh không cần sửa code.
      */
     public function extract(
         string $absoluteFilePath,
@@ -40,10 +22,14 @@ class Stage2VisionExtractorService
         string $languageHint,
         ?string $strategyHint = null,
     ): array {
-        $criticalFields = self::CRITICAL_FIELDS[$docType] ?? [];
+        $taxonomy = config("ocr_doc_taxonomy.{$docType}", ['critical' => [], 'normal' => []]);
+        $criticalFields = $taxonomy['critical'] ?? [];
+        $normalFields = $taxonomy['normal'] ?? [];
         $translateToVi = $languageHint !== 'vi' && $languageHint !== 'und';
 
-        $systemPrompt = $this->systemPrompt($docType, $languageHint, $criticalFields, $translateToVi, $strategyHint);
+        $systemPrompt = $this->systemPrompt(
+            $docType, $languageHint, $criticalFields, $normalFields, $translateToVi, $strategyHint
+        );
 
         $userContent = [
             ContentBlocks::fileBlock($absoluteFilePath, $mime),
@@ -124,10 +110,12 @@ class Stage2VisionExtractorService
         string $docType,
         string $languageHint,
         array $criticalFields,
+        array $normalFields,
         bool $translateToVi,
         ?string $strategyHint,
     ): string {
         $criticalList = $criticalFields ? implode(', ', $criticalFields) : '(none)';
+        $normalList = $normalFields ? implode(', ', $normalFields) : '(none)';
         $translateFlag = $translateToVi ? 'true' : 'false';
         $strategy = $strategyHint ?? '(no hint)';
 
@@ -176,7 +164,9 @@ THIS CALL CONTEXT
 Expected document type: {$docType}
 Expected primary language: {$languageHint}
 Translate text fields to Vietnamese: {$translateFlag}
-Critical fields (weight 2): {$criticalList}
+Critical fields (REQUIRED — must emit entries even if value=""): {$criticalList}
+Normal fields (EXPECTED — emit entries if present in document, omit if truly absent): {$normalList}
+Freeform fields: you MAY emit additional fields beyond the lists above if you observe them clearly labelled in the document (e.g. "Điều khoản trách nhiệm", "Phụ lục", "Ghi chú đặc biệt"). Use snake_case keys. Avoid duplicating critical/normal fields under different names.
 Stage 1 strategy hint: {$strategy}
 
 ============================================================
