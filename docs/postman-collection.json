@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Baokim OCR API",
+    "description": "Demo collection cho dự án OCR Baokim KSNB. Configure `base_url` và `api_key` trong tab Variables trước khi chạy.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "base_url", "value": "http://127.0.0.1:8000", "type": "string"},
+    {"key": "api_key", "value": "PASTE_OCR_API_KEY_HERE", "type": "string"},
+    {"key": "last_document_id", "value": "", "type": "string"}
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {"key": "key", "value": "X-API-Key", "type": "string"},
+      {"key": "value", "value": "{{api_key}}", "type": "string"},
+      {"key": "in", "value": "header", "type": "string"}
+    ]
+  },
+  "item": [
+    {
+      "name": "1. Upload — POST /api/ocr/process",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "X-API-Key", "value": "{{api_key}}"}],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "file", "type": "file", "src": "", "description": "Upload CCCD/passport/GPKD/invoice ảnh JPG/PNG/WEBP hoặc PDF (≤25MB)"}
+          ]
+        },
+        "url": {"raw": "{{base_url}}/api/ocr/process", "host": ["{{base_url}}"], "path": ["api", "ocr", "process"]},
+        "description": "Upload tài liệu để OCR. Trả về `document_id` ngay (status=pending), worker xử lý 7 stages async. Re-upload cùng file (sha256) trả lại document_id cũ với duplicate=true."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "{",
+          "  const resp = pm.response.json();",
+          "  if (resp.document_id) {",
+          "    pm.collectionVariables.set('last_document_id', resp.document_id);",
+          "  }",
+          "  pm.test('returns 200 or 202', () => pm.expect([200, 202]).to.include(pm.response.code));",
+          "  pm.test('has document_id', () => pm.expect(resp.document_id).to.be.a('number'));",
+          "}"
+        ], "type": "text/javascript"}
+      }]
+    },
+    {
+      "name": "2. Get result RAW — GET /api/ocr/{id}",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "X-API-Key", "value": "{{api_key}}"}],
+        "url": {"raw": "{{base_url}}/api/ocr/{{last_document_id}}", "host": ["{{base_url}}"], "path": ["api", "ocr", "{{last_document_id}}"]},
+        "description": "Lấy result RAW — KSNB dùng để copy-paste vào hệ thống Baokim + Google Sheet. CCCD/phone/email đầy đủ không mask. Poll mỗi 3 giây cho đến khi status=done."
+      }
+    },
+    {
+      "name": "3. Get result MASKED — GET /api/ocr/{id}?view=masked",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "X-API-Key", "value": "{{api_key}}"}],
+        "url": {"raw": "{{base_url}}/api/ocr/{{last_document_id}}?view=masked", "host": ["{{base_url}}"], "path": ["api", "ocr", "{{last_document_id}}"], "query": [{"key": "view", "value": "masked"}]},
+        "description": "Cùng document_id, view=masked → PII bị che (CCCD `001234***890`, phone `098****321`, email `j***@example.com`). Dùng cho export ra ngoài / share team khác."
+      }
+    },
+    {
+      "name": "4. List history — GET /api/ocr",
+      "request": {
+        "method": "GET",
+        "header": [{"key": "X-API-Key", "value": "{{api_key}}"}],
+        "url": {
+          "raw": "{{base_url}}/api/ocr?per_page=20",
+          "host": ["{{base_url}}"],
+          "path": ["api", "ocr"],
+          "query": [
+            {"key": "per_page", "value": "20"},
+            {"key": "status", "value": "done", "disabled": true}
+          ]
+        },
+        "description": "Truy xuất lịch sử OCR. Filter qua query: ?status=done|processing|failed, ?per_page=20."
+      }
+    },
+    {
+      "name": "5. Auth fail — POST không X-API-Key",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {"raw": "{{base_url}}/api/ocr/process", "host": ["{{base_url}}"], "path": ["api", "ocr", "process"]},
+        "description": "Verify auth: bỏ header X-API-Key → 401."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {"exec": [
+          "{",
+          "  pm.test('returns 401', () => pm.response.to.have.status(401));",
+          "}"
+        ], "type": "text/javascript"}
+      }]
+    },
+    {
+      "name": "6. Validation fail — upload .docx",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "X-API-Key", "value": "{{api_key}}"}],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "file", "type": "file", "src": "", "description": "Upload .docx — sẽ bị reject 422 với hướng dẫn Save As → PDF"}
+          ]
+        },
+        "url": {"raw": "{{base_url}}/api/ocr/process", "host": ["{{base_url}}"], "path": ["api", "ocr", "process"]},
+        "description": "Word/Excel out-of-scope. Stage 0 reject với HTTP 422 + Vietnamese error message."
+      }
+    },
+    {
+      "name": "7. Swagger UI — GET /api/documentation",
+      "request": {
+        "method": "GET",
+        "url": {"raw": "{{base_url}}/api/documentation", "host": ["{{base_url}}"], "path": ["api", "documentation"]},
+        "description": "Swagger UI tự generate — alternative cho Postman để demo."
+      }
+    }
+  ]
+}
