@@ -13,12 +13,10 @@
         <div class="mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
             <a href="/ocr" class="text-lg font-semibold text-gray-900">
                 Baokim OCR
-                <span class="ml-2 text-xs font-normal text-gray-500">KSNB onboarding</span>
             </a>
             <nav class="flex items-center gap-4 text-sm text-gray-600">
-                <a href="/ocr" wire:navigate class="hover:text-gray-900">Upload</a>
+                <a href="/ocr" wire:navigate class="hover:text-gray-900">Tải tài liệu</a>
                 <a href="/ocr/history" wire:navigate class="hover:text-gray-900">Lịch sử</a>
-                <a href="/api/documentation" target="_blank" class="hover:text-gray-900">API docs</a>
             </nav>
         </div>
     </header>
@@ -29,7 +27,7 @@
 
     <footer class="mt-12 border-t border-gray-200 bg-white">
         <div class="mx-auto max-w-5xl px-6 py-4 text-xs text-gray-500">
-            Baokim KSNB · Harness 7 stages · {{ config('ocr.llm_provider') }} · {{ now()->format('Y-m-d H:i') }}
+            © Baokim · {{ now()->format('Y') }}
         </div>
     </footer>
 

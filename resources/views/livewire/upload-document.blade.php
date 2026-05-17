@@ -1,9 +1,9 @@
 <div class="space-y-6">
     <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Upload tài liệu OCR</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">Tải tài liệu</h1>
         <p class="mt-1 text-sm text-gray-600">
-            Nhận ảnh (JPEG/PNG/WEBP) hoặc PDF tới 25MB. VI / EN / ZH đều OK.
-            Word/Excel chưa hỗ trợ — Save As → PDF trước.
+            Chấp nhận ảnh hoặc PDF, tối đa 25MB. Hỗ trợ tiếng Việt, Anh, Trung.
+            Tài liệu Word/Excel xin lưu sang PDF trước khi tải lên.
         </p>
     </div>
 
@@ -48,19 +48,13 @@
                     <path class="opacity-75" fill="currentColor"
                           d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4zm2 5.3A7.96 7.96 0 014 12H0c0 3 1.1 5.8 3 7.9l3-2.6z"></path>
                 </svg>
-                <span wire:loading.remove wire:target="submit">Upload + OCR</span>
-                <span wire:loading wire:target="submit">Đang chạy harness 7 stages…</span>
+                <span wire:loading.remove wire:target="submit">Bắt đầu xử lý</span>
+                <span wire:loading wire:target="submit">Đang xử lý…</span>
             </button>
 
             <p class="text-xs text-gray-500" wire:loading wire:target="submit">
-                3 LLM calls ~30-45s. Vui lòng đừng đóng tab.
+                Quá trình mất khoảng 30-45 giây. Vui lòng đừng đóng tab.
             </p>
         </div>
     </form>
-
-    <div class="text-xs text-gray-500 border-t pt-4">
-        Pipeline: Stage 0 validate → Stage 1 classify ({{ config('ocr.gemini.model_classifier') }})
-        → Stage 2 extract → Stage 3 validate (rule + judge) → Stage 4 PII mask
-        → Stage 5 aggregate → Stage 6 persist
-    </div>
 </div>

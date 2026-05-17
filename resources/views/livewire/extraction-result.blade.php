@@ -16,18 +16,18 @@
         <div>
             <h1 class="text-2xl font-semibold">{{ $doc->original_name }}</h1>
             <p class="text-sm text-gray-500">
-                Document #{{ $doc->id }} · {{ $doc->mime }} · {{ number_format($doc->size_bytes / 1024, 1) }} KB
-                · {{ $doc->created_at?->format('Y-m-d H:i') }}
+                #{{ $doc->id }} · {{ number_format($doc->size_bytes / 1024, 1) }} KB
+                · {{ $doc->created_at?->format('d/m/Y H:i') }}
             </p>
         </div>
         <div class="flex gap-2">
             <a href="/ocr/history" wire:navigate
                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-                Lịch sử
+                Xem lịch sử
             </a>
             <a href="/ocr" wire:navigate
                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-                ← Upload khác
+                ← Tải tài liệu khác
             </a>
         </div>
     </div>
@@ -48,39 +48,77 @@
     @endif
 
     @if ($extraction)
+        @php
+            $docTypeLabels = [
+                'cccd' => 'CCCD/CMND', 'passport' => 'Hộ chiếu',
+                'gpkd' => 'Giấy phép kinh doanh',
+                'contract_vi' => 'Hợp đồng (VI)', 'contract_en' => 'Hợp đồng (EN)',
+                'contract_zh' => 'Hợp đồng (ZH)', 'invoice' => 'Hóa đơn',
+                'legal_doc' => 'Văn bản pháp lý',
+                'customs_declaration' => 'Tờ khai hải quan',
+                'bill_of_lading' => 'Vận đơn',
+                'aml_charter' => 'Điều lệ AML',
+                'power_of_attorney' => 'Giấy ủy quyền',
+                'labor_contract' => 'Hợp đồng lao động',
+                'financial_report' => 'Báo cáo tài chính',
+                'other' => 'Khác',
+            ];
+            $langLabels = ['vi'=>'Tiếng Việt','en'=>'Tiếng Anh','zh'=>'Tiếng Trung','mixed'=>'Đa ngôn ngữ','und'=>'Không xác định'];
+            $qualityLabels = ['high'=>'Tốt','medium'=>'Trung bình','low'=>'Thấp'];
+        @endphp
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div class="rounded-md border border-gray-200 bg-white p-3">
-                <p class="text-xs text-gray-500 uppercase">Doc type</p>
-                <p class="font-semibold text-gray-900 mt-1">{{ $extraction->doc_type }}</p>
+                <p class="text-xs text-gray-500">Loại tài liệu</p>
+                <p class="font-semibold text-gray-900 mt-1">{{ $docTypeLabels[$extraction->doc_type] ?? $extraction->doc_type }}</p>
             </div>
             <div class="rounded-md border border-gray-200 bg-white p-3">
-                <p class="text-xs text-gray-500 uppercase">Ngôn ngữ</p>
-                <p class="font-semibold text-gray-900 mt-1">{{ $extraction->language_detected }}</p>
+                <p class="text-xs text-gray-500">Ngôn ngữ</p>
+                <p class="font-semibold text-gray-900 mt-1">{{ $langLabels[$extraction->language_detected] ?? $extraction->language_detected }}</p>
             </div>
             <div class="rounded-md border border-gray-200 bg-white p-3">
-                <p class="text-xs text-gray-500 uppercase">Confidence</p>
+                <p class="text-xs text-gray-500">Độ tin cậy</p>
                 <p class="font-semibold text-gray-900 mt-1">
                     {{ number_format($extraction->confidence_overall * 100, 1) }}%
                 </p>
             </div>
             <div class="rounded-md border p-3 {{ $qualityColor }}">
-                <p class="text-xs uppercase opacity-75">Quality</p>
-                <p class="font-semibold mt-1 capitalize">
-                    {{ $quality }}
+                <p class="text-xs opacity-75">Chất lượng</p>
+                <p class="font-semibold mt-1">
+                    {{ $qualityLabels[$quality] ?? $quality }}
                     @if ($extraction->requires_review)
-                        · cần review
+                        · cần kiểm tra
                     @endif
                 </p>
             </div>
         </div>
 
+        @php
+            $warningLabels = [
+                'CRITICAL_RULE_FAILED' => 'Sai định dạng',
+                'JUDGE_FLAGGED' => 'Cần kiểm tra lại',
+                'SELF_VS_JUDGE_DISAGREE' => 'Kết quả không chắc chắn',
+                'LOW_CONFIDENCE' => 'Độ tin cậy thấp',
+                'MEDIUM_CONFIDENCE' => 'Độ tin cậy trung bình',
+                'CRITICAL_FIELDS_FAILED' => 'Trường quan trọng có lỗi',
+                'MULTI_SIGNAL_DISAGREE' => 'Các kiểm tra không nhất quán',
+                'LOW_IMAGE_QUALITY' => 'Chất lượng ảnh thấp',
+            ];
+        @endphp
         @if (! empty($extraction->warnings))
             <div class="rounded-md bg-amber-50 border border-amber-200 p-3 space-y-1">
-                <p class="text-sm font-medium text-amber-900">Warnings</p>
+                <p class="text-sm font-medium text-amber-900">Ghi chú cần lưu ý</p>
                 @foreach ($extraction->warnings as $w)
+                    @php
+                        $field = $w['field'] ?? '';
+                        $fieldLabel = $field === '_global' ? 'Toàn bộ tài liệu' :
+                            (\App\Support\OcrFieldLabels::label($field));
+                    @endphp
                     <p class="text-xs text-amber-800">
-                        <span class="font-mono">{{ $w['code'] ?? '' }}</span>
-                        · {{ $w['field'] ?? '' }} — {{ $w['msg'] ?? '' }}
+                        <span class="font-medium">{{ $warningLabels[$w['code'] ?? ''] ?? ($w['code'] ?? '') }}</span>
+                        · {{ $fieldLabel }}
+                        @if (! empty($w['msg']))
+                            — {{ $w['msg'] }}
+                        @endif
                     </p>
                 @endforeach
             </div>
@@ -93,15 +131,15 @@
                     <h2 class="font-semibold text-blue-900">
                         Bản dịch tiếng Việt
                         <span class="ml-2 text-xs font-normal text-blue-700">
-                            (gốc: {{ strtoupper($extraction->language_detected) }})
+                            (gốc: {{ $langLabels[$extraction->language_detected] ?? strtoupper($extraction->language_detected) }})
                         </span>
                     </h2>
                     <button type="button"
                             x-data="{ copied: false }"
                             x-on:click="navigator.clipboard.writeText(@js($extraction->translation_vi)).then(() => { copied = true; setTimeout(() => copied = false, 1500); })"
                             class="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
-                        <span x-show="!copied">Copy bản dịch</span>
-                        <span x-show="copied" x-cloak>✓ Copied</span>
+                        <span x-show="!copied">Sao chép bản dịch</span>
+                        <span x-show="copied" x-cloak>✓ Đã chép</span>
                     </button>
                 </div>
                 <pre class="px-4 py-3 text-sm whitespace-pre-wrap font-sans max-h-72 overflow-y-auto text-blue-900">{{ $extraction->translation_vi }}</pre>
@@ -111,21 +149,20 @@
         {{-- Key-values với action tracking --}}
         <div class="bg-white rounded-md border border-gray-200">
             <div class="px-4 py-3 border-b border-gray-200">
-                <h2 class="font-semibold text-gray-900">Trường dữ liệu OCR</h2>
+                <h2 class="font-semibold text-gray-900">Thông tin trích xuất</h2>
                 <p class="text-xs text-gray-500 mt-1">
-                    Click <b>Copy</b> nếu giá trị đúng · sửa value rồi <b>Copy</b> để mark edited
-                    · <b>Skip</b> nếu không cần · <b>Wrong</b> nếu AI bịa.
-                    Mọi action được tracked làm implicit feedback cho agent học.
+                    Bấm <b>Sao chép</b> để lấy giá trị. Có thể sửa trực tiếp trước khi sao chép.
+                    <b>Bỏ qua</b> nếu không cần dùng · <b>Báo sai</b> nếu thông tin không chính xác.
                 </p>
             </div>
 
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-xs uppercase text-gray-500">
                     <tr>
-                        <th class="text-left px-4 py-2 w-1/4">Field</th>
+                        <th class="text-left px-4 py-2 w-1/4">Trường thông tin</th>
                         <th class="text-left px-4 py-2">Giá trị (chỉnh sửa được)</th>
-                        <th class="text-right px-4 py-2 w-32">Confidence</th>
-                        <th class="text-right px-4 py-2 w-80">Actions</th>
+                        <th class="text-right px-4 py-2 w-32">Độ tin cậy</th>
+                        <th class="text-right px-4 py-2 w-80">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -184,23 +221,31 @@
                             </td>
                             <td class="px-4 py-2 text-right space-x-1 align-middle">
                                 @if ($state['action'])
-                                    <span class="text-xs text-gray-500">✓ {{ $state['action'] }}</span>
+                                    @php
+                                        $actionLabels = [
+                                            'copy_raw' => 'Đã sao chép',
+                                            'edit_then_copy' => 'Đã sửa & sao chép',
+                                            'skip' => 'Đã bỏ qua',
+                                            'mark_wrong' => 'Đã báo sai',
+                                        ];
+                                    @endphp
+                                    <span class="text-xs text-gray-500">✓ {{ $actionLabels[$state['action']] ?? $state['action'] }}</span>
                                 @else
                                     <button type="button"
                                             x-on:click="doCopy()"
                                             class="rounded bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800">
-                                        <span x-show="!copied">Copy</span>
-                                        <span x-show="copied" x-cloak>✓ Copied</span>
+                                        <span x-show="!copied">Sao chép</span>
+                                        <span x-show="copied" x-cloak>✓ Đã chép</span>
                                     </button>
                                     <button type="button"
                                             x-on:click="doSkip()"
                                             class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">
-                                        Skip
+                                        Bỏ qua
                                     </button>
                                     <button type="button"
                                             x-on:click="doWrong()"
                                             class="rounded border border-red-300 text-red-600 px-2 py-1 text-xs hover:bg-red-50">
-                                        Wrong
+                                        Báo sai
                                     </button>
                                 @endif
                             </td>
@@ -218,10 +263,10 @@
 
         {{-- KSNB overall comment --}}
         <div class="bg-white rounded-md border border-gray-200 p-4">
-            <h2 class="font-semibold text-gray-900">Nhận xét chung của KSNB</h2>
+            <h2 class="font-semibold text-gray-900">Nhận xét của bạn</h2>
             <p class="text-xs text-gray-500 mt-1 mb-3">
-                Comment tự do về tài liệu này: nhận xét chất lượng OCR, vấn đề bạn thấy,
-                hoặc gợi ý cải thiện. Agent sẽ đọc note này khi phân tích feedback.
+                Bạn có thể ghi nhận xét về chất lượng OCR hoặc các vấn đề bạn thấy ở tài liệu này.
+                Phản hồi của bạn giúp hệ thống cải thiện chính xác hơn.
             </p>
 
             @if ($overallNoteSubmitted)
@@ -233,7 +278,7 @@
                     <textarea wire:model="overallNote"
                               rows="3"
                               maxlength="2000"
-                              placeholder="VD: AI extract sai họ tên (thiếu dấu), confidence 0.95 hơi cao so với thực tế. Nên thêm rule check dấu tiếng Việt."
+                              placeholder="VD: Hệ thống đọc sai họ tên (thiếu dấu). Hoặc: Một số trường bị nhầm giữa bên A và bên B."
                               class="w-full rounded border-gray-200 text-sm px-3 py-2 focus:border-gray-400 focus:ring-0"></textarea>
                     @error('overallNote')
                         <p class="text-xs text-red-600">{{ $message }}</p>
@@ -241,7 +286,15 @@
                     <div class="flex items-center justify-between">
                         <p class="text-xs text-gray-400">Tối đa 2000 ký tự</p>
                         <button type="submit"
-                                class="rounded bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800">
+                                wire:loading.attr="disabled"
+                                wire:target="submitOverallComment"
+                                class="inline-flex items-center gap-2 rounded bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:bg-gray-400">
+                            <svg wire:loading wire:target="submitOverallComment"
+                                 class="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                      d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"></path>
+                            </svg>
                             Gửi nhận xét
                         </button>
                     </div>
@@ -251,7 +304,7 @@
 
         <details class="rounded-md border border-gray-200 bg-white">
             <summary class="cursor-pointer px-4 py-2 font-medium text-gray-900">
-                Raw text ({{ strlen($extraction->text_full) }} ký tự)
+                Toàn bộ nội dung tài liệu ({{ number_format(strlen($extraction->text_full)) }} ký tự)
             </summary>
             <pre class="px-4 py-3 border-t border-gray-200 text-xs whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">{{ $extraction->text_full }}</pre>
         </details>
