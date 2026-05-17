@@ -1,4 +1,5 @@
 @php
+    use App\Support\OcrFieldLabels;
     $extraction = $doc->extraction;
     $quality = $extraction?->quality ?? 'low';
     $qualityColor = match ($quality) {
@@ -81,6 +82,28 @@
             </div>
         @endif
 
+        {{-- Translation tiếng Việt — show prominent cho non-VN docs --}}
+        @if ($extraction->translation_vi && $extraction->language_detected !== 'vi')
+            <div class="bg-blue-50 border border-blue-200 rounded-md">
+                <div class="px-4 py-2 border-b border-blue-200 flex items-center justify-between">
+                    <h2 class="font-semibold text-blue-900">
+                        Bản dịch tiếng Việt
+                        <span class="ml-2 text-xs font-normal text-blue-700">
+                            (gốc: {{ strtoupper($extraction->language_detected) }})
+                        </span>
+                    </h2>
+                    <button type="button"
+                            x-data="{ copied: false }"
+                            x-on:click="navigator.clipboard.writeText(@js($extraction->translation_vi)).then(() => { copied = true; setTimeout(() => copied = false, 1500); })"
+                            class="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
+                        <span x-show="!copied">Copy bản dịch</span>
+                        <span x-show="copied" x-cloak>✓ Copied</span>
+                    </button>
+                </div>
+                <pre class="px-4 py-3 text-sm whitespace-pre-wrap font-sans max-h-72 overflow-y-auto text-blue-900">{{ $extraction->translation_vi }}</pre>
+            </div>
+        @endif
+
         {{-- Key-values với action tracking --}}
         <div class="bg-white rounded-md border border-gray-200">
             <div class="px-4 py-3 border-b border-gray-200">
@@ -138,7 +161,10 @@
                             }"
                             class="{{ $rowDimmed ? 'opacity-60' : '' }}"
                         >
-                            <td class="px-4 py-2 font-mono text-xs text-gray-700 align-middle">{{ $key }}</td>
+                            <td class="px-4 py-2 align-middle">
+                                <p class="font-medium text-gray-900 text-sm">{{ OcrFieldLabels::label($key) }}</p>
+                                <p class="font-mono text-xs text-gray-500">{{ $key }}</p>
+                            </td>
                             <td class="px-4 py-2">
                                 <input
                                     type="text"
@@ -218,15 +244,6 @@
                 </form>
             @endif
         </div>
-
-        @if ($extraction->translation_vi)
-            <details class="rounded-md border border-gray-200 bg-white">
-                <summary class="cursor-pointer px-4 py-2 font-medium text-gray-900">
-                    Bản dịch tiếng Việt
-                </summary>
-                <pre class="px-4 py-3 border-t border-gray-200 text-sm whitespace-pre-wrap font-sans">{{ $extraction->translation_vi }}</pre>
-            </details>
-        @endif
 
         <details class="rounded-md border border-gray-200 bg-white">
             <summary class="cursor-pointer px-4 py-2 font-medium text-gray-900">
