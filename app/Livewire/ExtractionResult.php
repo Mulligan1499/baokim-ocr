@@ -73,6 +73,17 @@ class ExtractionResult extends Component
         $this->fieldState[$fieldKey]['action'] = $actionType;
     }
 
+    /**
+     * Hoàn tác action vừa thực hiện cho 1 field — KSNB click nhầm có thể undo
+     * và thao tác lại. Chỉ rollback được action trong session hiện tại + chưa
+     * được agent analyzed.
+     */
+    public function rollbackAction(string $fieldKey, OcrUserActionRepository $actions): void
+    {
+        $actions->deleteLatestForField($this->doc->id, $fieldKey, $this->sessionId);
+        $this->fieldState[$fieldKey]['action'] = null;
+    }
+
     public function submitOverallComment(OcrUserActionRepository $actions): void
     {
         $this->validate();

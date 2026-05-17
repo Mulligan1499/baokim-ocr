@@ -17,6 +17,27 @@ class OcrUserActionRepository
         return OcrUserAction::create($data + ['created_at' => now()]);
     }
 
+    /**
+     * Xóa action gần nhất (cùng session) cho document + field, dùng cho
+     * undo/rollback khi KSNB click nhầm.
+     * Chỉ xóa action chưa được analyzed (analyzed_at IS NULL) để bảo toàn audit.
+     */
+    public function deleteLatestForField(int $documentId, string $fieldKey, string $sessionId): bool
+    {
+        $latest = OcrUserAction::where('document_id', $documentId)
+            ->where('field_key', $fieldKey)
+            ->where('session_id', $sessionId)
+            ->whereNull('analyzed_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $latest) {
+            return false;
+        }
+
+        return (bool) $latest->delete();
+    }
+
     public function findByDocumentId(int $documentId): Collection
     {
         return OcrUserAction::where('document_id', $documentId)

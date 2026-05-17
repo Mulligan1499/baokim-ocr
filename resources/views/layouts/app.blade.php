@@ -15,7 +15,7 @@
                 Baokim OCR
             </a>
             <nav class="flex items-center gap-4 text-sm text-gray-600">
-                <a href="/ocr" wire:navigate class="hover:text-gray-900">Tải tài liệu</a>
+                <a href="/ocr" wire:navigate class="hover:text-gray-900">Upload tài liệu</a>
                 <a href="/ocr/history" wire:navigate class="hover:text-gray-900">Lịch sử</a>
             </nav>
         </div>

@@ -1,6 +1,6 @@
 <div class="space-y-6">
     <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Tải tài liệu</h1>
+        <h1 class="text-2xl font-semibold text-gray-900">Upload tài liệu</h1>
         <p class="mt-1 text-sm text-gray-600">
             Chấp nhận ảnh hoặc PDF, tối đa 25MB. Hỗ trợ tiếng Việt, Anh, Trung.
             Tài liệu Word/Excel xin lưu sang PDF trước khi tải lên.

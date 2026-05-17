@@ -29,7 +29,7 @@
         </div>
         <a href="/ocr" wire:navigate
            class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
-            + Tải tài liệu mới
+            + Upload tài liệu mới
         </a>
     </div>
 
@@ -116,7 +116,7 @@
                         <td colspan="8" class="px-4 py-8 text-center text-sm text-gray-500">
                             Chưa có tài liệu nào.
                             <a href="/ocr" wire:navigate class="text-gray-900 underline">
-                                Tải tài liệu đầu tiên
+                                Upload tài liệu đầu tiên
                             </a>.
                         </td>
                     </tr>

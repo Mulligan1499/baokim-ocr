@@ -27,7 +27,7 @@
             </a>
             <a href="/ocr" wire:navigate
                class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-                ← Tải tài liệu khác
+                ← Upload tài liệu khác
             </a>
         </div>
     </div>
@@ -230,6 +230,14 @@
                                         ];
                                     @endphp
                                     <span class="text-xs text-gray-500">✓ {{ $actionLabels[$state['action']] ?? $state['action'] }}</span>
+                                    <button type="button"
+                                            wire:click="rollbackAction(@js($key))"
+                                            wire:loading.attr="disabled"
+                                            wire:target="rollbackAction"
+                                            title="Hoàn tác để thao tác lại"
+                                            class="ml-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-50">
+                                        ↶ Hoàn tác
+                                    </button>
                                 @else
                                     <button type="button"
                                             x-on:click="doCopy()"
