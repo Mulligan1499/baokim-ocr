@@ -1,0 +1,46 @@
+<?php
+
+namespace App\Livewire;
+
+use App\Services\Ocr\DocumentUploadService;
+use Livewire\Attributes\Validate;
+use Livewire\Component;
+use Livewire\WithFileUploads;
+
+/**
+ * Upload form cho KSNB. Reuse DocumentUploadService (BKM03 — không
+ * duplicate logic giữa API và UI). Sync mode QUEUE_CONNECTION=sync nên
+ * pipeline chạy ngay trong request, redirect đến result page khi xong.
+ */
+class UploadDocument extends Component
+{
+    use WithFileUploads;
+
+    #[Validate('required|file|max:25600|mimes:jpeg,jpg,png,webp,pdf')]
+    public $file;
+
+    public bool $busy = false;
+    public ?string $errorMessage = null;
+
+    public function submit(DocumentUploadService $uploadService): void
+    {
+        $this->validate();
+
+        $this->busy = true;
+        $this->errorMessage = null;
+
+        try {
+            @set_time_limit(0);
+            [$doc] = $uploadService->handle($this->file, apiKeyLabel: 'web-ui');
+            $this->redirect(route('ocr.result', ['id' => $doc->id]), navigate: true);
+        } catch (\Throwable $e) {
+            $this->busy = false;
+            $this->errorMessage = $e->getMessage();
+        }
+    }
+
+    public function render()
+    {
+        return view('livewire.upload-document');
+    }
+}
