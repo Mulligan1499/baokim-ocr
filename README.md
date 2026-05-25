@@ -36,17 +36,25 @@ Upload → Stage 0 (validate) → queue
 
 ## Skill Ecosystem
 
-12 skills (cho Dev role) — chia 4 reusability tier, 92% reusable ngoài dự án này.
+Repo gồm **27 skills** đóng góp từ 3 vai trò trong team:
 
 ```
 .claude/skills/
-├── README.md       # Overview + catalog 12 skill
-├── DEV/            # 12 skill em build
-├── QA/             # Reserved cho team QA (sẽ đẩy skill vào)
-└── BA/             # Reserved cho team BA (sẽ đẩy skill vào)
+├── README.md       # Overview + catalog đầy đủ
+├── DEV/            # 12 skills — Dev role
+├── QA/             #  6 skills — QA / Tester role
+└── BA/             #  9 skills — Business Analyst role
 ```
 
-→ Chi tiết: [`.claude/skills/README.md`](.claude/skills/README.md)
+| Role | Số skill | Phạm vi đóng góp |
+|---|---|---|
+| **Dev** | 12 | Code Laravel theo BKM standards, OCR pipeline 7 stages, foundation prompt engineering, decision framework |
+| **QA** | 6 | Test automation từ API spec, scaffold test, dedupe log bug, update test case từ log run |
+| **BA** | 9 | User story, use case, feature/data spec, stakeholder meeting, change reporting, visualization |
+
+→ Chi tiết catalog từng skill: [`.claude/skills/README.md`](.claude/skills/README.md)
+
+Skills follow chuẩn Anthropic Claude Skill spec + Baokim enterprise extensions.
 
 ---
 
@@ -144,6 +152,10 @@ Tuân theo 8 rule [.claude/references/baokim-db-standard.md](.claude/references/
 
 ---
 
-## Owner
+## Team
 
-**Duy** ([duy@baokim.vn](mailto:duy@baokim.vn))
+| Vai trò | Owner | Đóng góp |
+|---|---|---|
+| **Dev** | Duy ([duy@baokim.vn](mailto:duy@baokim.vn)) | OCR API + 12 dev skills + harness 7 stages |
+| **QA** | Team Tester | 6 QA skills |
+| **BA** | Team BA | 9 BA skills |
