@@ -1,0 +1,41 @@
+*** Settings ***
+Library    Collections
+Library    String
+Resource   {{MODULE}}_actions.robot
+
+*** Keywords ***
+Build {{MODULE_TITLE}} Payload For Test
+    [Documentation]    Build payload cho 1 row CSV. Hỗ trợ special values:
+    ...      EMPTY           → set field = ""
+    ...      MISSING         → bỏ field khỏi body
+    ...      DYNAMIC         → đổi 1 ký tự cuối của baseline value
+    ...      VALID_BASELINE  → giữ nguyên payload hợp lệ
+    ...      <khác>          → set field = test_value
+    [Arguments]    ${field_name}    ${test_value}
+    ${payload}=    Create Dictionary    {{BASELINE_PAIRS}}
+    IF    '${test_value}' == 'VALID_BASELINE'
+        RETURN    ${payload}
+    ELSE IF    '${test_value}' == 'EMPTY'
+        Set To Dictionary    ${payload}    ${field_name}    ${EMPTY}
+    ELSE IF    '${test_value}' == 'MISSING'
+        Run Keyword And Ignore Error    Remove From Dictionary    ${payload}    ${field_name}
+    ELSE
+        Set To Dictionary    ${payload}    ${field_name}    ${test_value}
+    END
+    RETURN    ${payload}
+
+Assert {{MODULE_TITLE}} Response
+    [Arguments]    ${response}    ${expected_code}    ${expected_message}=${EMPTY}
+    IF    '${expected_code}' != '${EMPTY}'
+        ${actual}=    Set Variable    ${response.status_code}
+        Should Be Equal As Strings    ${actual}    ${expected_code}
+        ...    msg=Expected ${expected_code}, got HTTP ${actual}, body=${response.text}
+    END
+    IF    '${expected_message}' != '${EMPTY}'
+        Should Contain    ${response.text}    ${expected_message}
+    END
+
+Apply CSV Tags
+    [Arguments]    ${tag_string}
+    @{tags}=    Split String    ${tag_string}    separator=|
+    Set Tags    @{tags}

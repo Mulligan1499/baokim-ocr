@@ -1,0 +1,21 @@
+*** Settings ***
+Library          DataDriver    file={{CSV_REL_PATH}}    encoding=utf_8    dialect=excel    delimiter=,
+Resource         {{COMMON_ACTIONS_PATH}}
+Resource         {{MODULE_ACTIONS_REL}}
+Resource         {{MODULE_FLOWS_REL}}
+Suite Setup      {{SUITE_SETUP_KEYWORD}}
+Test Template    Verify {{MODULE_TITLE}} Case
+
+*** Test Cases ***
+${Case_id} - ${Descriptions}    ${Descriptions}    ${field_name}    ${test_value}    ${expected_code}    ${expected_message}    ${Tag}
+
+*** Keywords ***
+Verify {{MODULE_TITLE}} Case
+    [Documentation]    Template chạy 1 row CSV: build payload, gọi API, assert response.
+    [Arguments]    ${Descriptions}    ${field_name}    ${test_value}    ${expected_code}    ${expected_message}    ${Tag}
+    Apply CSV Tags    ${Tag}
+    ${payload}=    Build {{MODULE_TITLE}} Payload For Test    ${field_name}    ${test_value}
+    Log Dictionary    ${payload}
+    ${response}=    Call {{MODULE_TITLE}} API With Payload    ${payload}
+    Log    HTTP ${response.status_code} | body=${response.text}
+    Assert {{MODULE_TITLE}} Response    ${response}    ${expected_code}    ${expected_message}

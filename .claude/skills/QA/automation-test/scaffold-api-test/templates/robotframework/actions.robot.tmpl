@@ -1,0 +1,20 @@
+*** Settings ***
+Library    RequestsLibrary
+Library    Collections
+Resource   {{COMMON_ACTIONS_PATH}}
+
+*** Keywords ***
+Call {{MODULE_TITLE}} API
+    [Documentation]    {{METHOD}} {{PATH}}
+    [Arguments]    {{ARG_LIST}}
+    ${body}=    Create Dictionary    {{BODY_PAIRS}}
+    ${response}=    {{METHOD_CAP}} On Session    {{SESSION}}    {{PATH}}
+    ...    json=${body}    expected_status=any
+    RETURN    ${response}
+
+Call {{MODULE_TITLE}} API With Payload
+    [Documentation]    Gửi payload tuỳ ý (dùng cho data-driven test với EMPTY/MISSING/...).
+    [Arguments]    ${payload}
+    ${response}=    {{METHOD_CAP}} On Session    {{SESSION}}    {{PATH}}
+    ...    json=${payload}    expected_status=any
+    RETURN    ${response}

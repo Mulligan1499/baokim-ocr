@@ -1,0 +1,31 @@
+"""Shared fixtures. Merge with existing conftest.py if dự án đã có."""
+import os
+import pytest
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+@pytest.fixture(scope="session")
+def base_url() -> str:
+    return os.environ["{{BASE_URL_ENV}}"]
+
+
+@pytest.fixture(scope="session")
+def api_client():
+    session = requests.Session()
+    yield session
+    session.close()
+
+
+@pytest.fixture(scope="session")
+def auth_token(api_client, base_url) -> str:
+    """Lấy token 1 lần, cache cho cả session.
+
+    TODO: thay endpoint/payload login cho khớp API thật của dự án.
+    """
+    login_payload = {{LOGIN_PAYLOAD_REPR}}
+    response = api_client.post(f"{base_url}{{LOGIN_PATH}}", json=login_payload)
+    response.raise_for_status()
+    return response.json()["data"]["access_token"]

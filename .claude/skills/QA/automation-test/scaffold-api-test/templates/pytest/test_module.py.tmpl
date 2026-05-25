@@ -1,0 +1,57 @@
+"""Tests for {{METHOD}} {{PATH}}"""
+import pytest
+import requests
+
+BASELINE_PAYLOAD = {{BASELINE_PAYLOAD_REPR}}
+
+
+def build_payload(field_name: str, test_value):
+    """Apply mutation based on special test_value sentinels."""
+    payload = dict(BASELINE_PAYLOAD)
+    if test_value == "VALID_BASELINE":
+        return payload
+    if test_value == "EMPTY":
+        payload[field_name] = ""
+    elif test_value == "MISSING":
+        payload.pop(field_name, None)
+    elif test_value == "DYNAMIC":
+        current = str(payload.get(field_name, ""))
+        payload[field_name] = (current[:-1] + ("A" if current[-1:] != "A" else "B")) if current else "X"
+    else:
+        payload[field_name] = test_value
+    return payload
+
+
+# (case_id, description, field, test_value, expected_status, expected_message)
+TEST_CASES = [
+    ("{{MOD_UP}}-1",            "happy path",                          "{{FIRST_FIELD}}", "VALID_BASELINE",       200, None),
+    ("{{MOD_UP}}_{{F1_UP}}-1",  "{{FIRST_FIELD}} EMPTY",               "{{FIRST_FIELD}}", "EMPTY",                422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-2",  "{{FIRST_FIELD}} MISSING",             "{{FIRST_FIELD}}", "MISSING",              422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-3",  "{{FIRST_FIELD}} only spaces",         "{{FIRST_FIELD}}", "     ",                422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-4",  "{{FIRST_FIELD}} special chars",       "{{FIRST_FIELD}}", "@#$%^&*()",            422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-5",  "{{FIRST_FIELD}} SQL injection bool",  "{{FIRST_FIELD}}", "' OR '1'='1",          422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-6",  "{{FIRST_FIELD}} SQL inj comment",     "{{FIRST_FIELD}}", "valid' --",            422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-7",  "{{FIRST_FIELD}} > 50 chars",          "{{FIRST_FIELD}}", "A" * 51,               422, None),
+    ("{{MOD_UP}}_{{F1_UP}}-8",  "{{FIRST_FIELD}} not exist in DB",     "{{FIRST_FIELD}}", "NOT_EXIST_XXX",        404, None),
+]
+
+
+@pytest.mark.parametrize(
+    "case_id,description,field_name,test_value,expected_status,expected_message",
+    TEST_CASES,
+    ids=[c[0] for c in TEST_CASES],
+)
+def test_{{MODULE}}(api_client, base_url, auth_token,
+                   case_id, description, field_name, test_value, expected_status, expected_message):
+    payload = build_payload(field_name, test_value)
+    headers = {"Authorization": f"Bearer {auth_token}"} if auth_token else {}
+    response = api_client.request(
+        "{{METHOD}}", f"{base_url}{{PATH}}", json=payload, headers=headers
+    )
+    assert response.status_code == expected_status, (
+        f"[{case_id}] expected {expected_status}, got {response.status_code}, body={response.text}"
+    )
+    if expected_message:
+        assert expected_message in response.text, (
+            f"[{case_id}] expected message '{expected_message}' not in body={response.text}"
+        )

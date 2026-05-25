@@ -1,0 +1,9 @@
+Case_id,Descriptions,field_name,test_value,expected_code,expected_message,Tag
+TC_LOGIN_001,Login hợp lệ,,,200,,critical;positive
+TC_LOGIN_002,Username rỗng,username,<EMPTY>,400,USERNAME_REQUIRED,critical;negative
+TC_LOGIN_003,Username thiếu trường,username,<MISSING>,400,USERNAME_REQUIRED,critical;negative
+TC_LOGIN_004,Password sai,password,WrongPassword,401,INVALID_CREDENTIALS,critical;negative
+TC_LOGIN_005a,"Thiếu username và password (tách từ TC_LOGIN_005, field=username)",username,<MISSING>,400,USERNAME_REQUIRED,negative
+TC_LOGIN_005b,"Thiếu username và password (tách từ TC_LOGIN_005, field=password)",password,<MISSING>,400,USERNAME_REQUIRED,negative
+TC_LOGIN_006,SQL injection trong username,username,' OR '1'='1,401,INVALID_CREDENTIALS,critical;negative;security
+TC_LOGIN_007,Username = null,username,<NULL>,400,USERNAME_REQUIRED,negative

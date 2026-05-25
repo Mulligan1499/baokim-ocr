@@ -1,0 +1,11 @@
+${Case_id},${Descriptions},${field_name},${test_value},${expected_code},${expected_message},${Tag}
+[{{MOD_UP}}-1],KT happy path - request hợp lệ,{{FIRST_FIELD}},VALID_BASELINE,200,,{{MOD_UP}}|HIGH|POSITIVE
+[{{MOD_UP}}_{{F1_UP}}-1],KT để trống {{FIRST_FIELD}},{{FIRST_FIELD}},EMPTY,422,,{{MOD_UP}}|HIGH|EMPTY
+[{{MOD_UP}}_{{F1_UP}}-2],KT không truyền field {{FIRST_FIELD}},{{FIRST_FIELD}},MISSING,422,,{{MOD_UP}}|HIGH|MISSING_FIELD
+[{{MOD_UP}}_{{F1_UP}}-3],KT {{FIRST_FIELD}} = chỉ là space,{{FIRST_FIELD}},     ,422,,{{MOD_UP}}|MEDIUM|SPACE
+[{{MOD_UP}}_{{F1_UP}}-4],KT {{FIRST_FIELD}} có space ở giữa,{{FIRST_FIELD}},val ue,422,,{{MOD_UP}}|MEDIUM|SPACE
+[{{MOD_UP}}_{{F1_UP}}-5],KT {{FIRST_FIELD}} chứa ký tự đặc biệt,{{FIRST_FIELD}},@#$%^&*(),422,,{{MOD_UP}}|MEDIUM|SPECIAL_CHAR
+[{{MOD_UP}}_{{F1_UP}}-6],KT {{FIRST_FIELD}} chứa SQL injection (boolean),{{FIRST_FIELD}},' OR '1'='1,422,,{{MOD_UP}}|HIGH|SQL_INJECTION
+[{{MOD_UP}}_{{F1_UP}}-7],KT {{FIRST_FIELD}} chứa SQL injection (comment),{{FIRST_FIELD}},valid' --,422,,{{MOD_UP}}|HIGH|SQL_INJECTION
+[{{MOD_UP}}_{{F1_UP}}-8],KT {{FIRST_FIELD}} vượt max length,{{FIRST_FIELD}},AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA,422,,{{MOD_UP}}|MEDIUM|MAX_LENGTH
+[{{MOD_UP}}_{{F1_UP}}-9],KT {{FIRST_FIELD}} không tồn tại trong DB,{{FIRST_FIELD}},NOT_EXIST_XXX,404,,{{MOD_UP}}|HIGH|NOT_EXIST

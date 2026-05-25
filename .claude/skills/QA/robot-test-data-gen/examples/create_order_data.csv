@@ -1,0 +1,6 @@
+Case_id,Descriptions,field_name,test_value,expected_code,expected_message,Tag
+TC_ORD_001,Tạo order hợp lệ,,,201,,happy path;positive
+TC_ORD_002,Amount bằng 0,amount,0,400,AMT_TOO_SMALL,boundary
+TC_ORD_003,Amount âm,amount,-100,400,AMT_NEGATIVE,negative
+TC_ORD_004,Currency không support,currency,XYZ,400,CURRENCY_NOT_SUPPORTED,validation
+TC_ORD_005,Merchant ID không tồn tại,merchant_id,NONEXIST-999,404,MERCHANT_NOT_FOUND,negative

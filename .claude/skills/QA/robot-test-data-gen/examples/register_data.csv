@@ -1,0 +1,5 @@
+Case_id,Descriptions,field_name,test_value,expected_code,expected_message,Tag
+T001,Đăng ký thành công,,,201,,critical;positive
+T002,Email sai format,email,not-an-email,400,INVALID_EMAIL,negative;validation
+T003a,"Thiếu password và name (tách từ T003, field=password)",password,<MISSING>,400,PASSWORD_REQUIRED,critical;negative
+T003b,"Thiếu password và name (tách từ T003, field=name)",name,<MISSING>,400,PASSWORD_REQUIRED,critical;negative
