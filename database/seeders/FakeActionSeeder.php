@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\OcrDocument;
 use App\Models\OcrExtraction;
 use App\Models\OcrUserAction;
+use App\Models\OcrUserActionText;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -49,8 +50,6 @@ class FakeActionSeeder extends Seeder
             'doc_type' => 'cccd',
             'language_detected' => 'vi',
             'page_count' => 1,
-            'text_full' => 'Fake CCCD text',
-            'text_full_masked' => 'Fake CCCD text',
             'key_values' => ['so_cccd' => '00123456789O'],
             'key_values_masked' => ['so_cccd' => '00123****89O'],
             'confidence_overall' => 0.85,
@@ -61,29 +60,35 @@ class FakeActionSeeder extends Seeder
 
         $sessionId = (string) Str::uuid();
         for ($i = 0; $i < 10; $i++) {
-            OcrUserAction::create([
+            $action = OcrUserAction::create([
                 'document_id' => $doc->id,
                 'field_key' => 'so_cccd',
                 'action_type' => OcrUserAction::ACTION_EDIT_THEN_COPY,
-                'original_value' => '00123456789O',
-                'final_value' => '001234567890',
                 'session_id' => $sessionId,
                 'duration_ms' => 15000 + $i * 1000,
                 'ksnb_user_label' => 'seeder',
                 'created_at' => now()->subDays(2)->addMinutes($i * 5),
             ]);
+            OcrUserActionText::create([
+                'action_id' => $action->id,
+                'original_value' => '00123456789O',
+                'final_value' => '001234567890',
+            ]);
         }
         for ($i = 0; $i < 2; $i++) {
-            OcrUserAction::create([
+            $action = OcrUserAction::create([
                 'document_id' => $doc->id,
                 'field_key' => 'so_cccd',
                 'action_type' => OcrUserAction::ACTION_COPY_RAW,
-                'original_value' => '001234567890',
-                'final_value' => '001234567890',
                 'session_id' => $sessionId,
                 'duration_ms' => 3000,
                 'ksnb_user_label' => 'seeder',
                 'created_at' => now()->subDays(2)->addMinutes($i * 5),
+            ]);
+            OcrUserActionText::create([
+                'action_id' => $action->id,
+                'original_value' => '001234567890',
+                'final_value' => '001234567890',
             ]);
         }
     }
@@ -105,8 +110,6 @@ class FakeActionSeeder extends Seeder
             'doc_type' => 'contract_zh',
             'language_detected' => 'zh',
             'page_count' => 3,
-            'text_full' => 'Fake Chinese contract',
-            'text_full_masked' => 'Fake Chinese contract',
             'key_values' => ['party_a' => 'XYZ Ltd', 'ethnicity' => 'Han'],
             'key_values_masked' => ['party_a' => 'XYZ Ltd', 'ethnicity' => 'Han'],
             'confidence_overall' => 0.9,
@@ -117,16 +120,19 @@ class FakeActionSeeder extends Seeder
 
         $sessionId = (string) Str::uuid();
         for ($i = 0; $i < 20; $i++) {
-            OcrUserAction::create([
+            $action = OcrUserAction::create([
                 'document_id' => $doc->id,
                 'field_key' => 'ethnicity',
                 'action_type' => OcrUserAction::ACTION_SKIP,
-                'original_value' => 'Han',
-                'final_value' => null,
                 'session_id' => $sessionId,
                 'duration_ms' => 1000,
                 'ksnb_user_label' => 'seeder',
                 'created_at' => now()->subDays(3)->addHours($i),
+            ]);
+            OcrUserActionText::create([
+                'action_id' => $action->id,
+                'original_value' => 'Han',
+                'final_value' => null,
             ]);
         }
     }
@@ -148,8 +154,6 @@ class FakeActionSeeder extends Seeder
             'doc_type' => 'invoice',
             'language_detected' => 'vi',
             'page_count' => 1,
-            'text_full' => 'Fake invoice text',
-            'text_full_masked' => 'Fake invoice text',
             'key_values' => ['total_amount' => '15000000', 'mst' => '0123456789'],
             'key_values_masked' => ['total_amount' => '15000000', 'mst' => '01234****89'],
             'confidence_overall' => 0.92,
@@ -160,16 +164,19 @@ class FakeActionSeeder extends Seeder
 
         $sessionId = (string) Str::uuid();
         for ($i = 0; $i < 5; $i++) {
-            OcrUserAction::create([
+            $action = OcrUserAction::create([
                 'document_id' => $doc->id,
                 'field_key' => 'total_amount',
                 'action_type' => OcrUserAction::ACTION_MARK_WRONG,
-                'original_value' => '15000000',
-                'final_value' => null,
                 'session_id' => $sessionId,
                 'duration_ms' => 35000,
                 'ksnb_user_label' => 'seeder',
                 'created_at' => now()->subDays(1)->addHours($i * 2),
+            ]);
+            OcrUserActionText::create([
+                'action_id' => $action->id,
+                'original_value' => '15000000',
+                'final_value' => null,
             ]);
         }
     }

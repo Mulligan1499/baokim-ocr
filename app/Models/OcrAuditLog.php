@@ -13,7 +13,7 @@ class OcrAuditLog extends Model
     protected $fillable = [
         'document_id',
         'stage',
-        'event',
+        'event_name',
         'payload',
         'latency_ms',
         'tokens_input',

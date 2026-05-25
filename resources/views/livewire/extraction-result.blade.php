@@ -12,34 +12,49 @@
 
 <div class="space-y-6">
     {{-- Header --}}
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold">{{ $doc->original_name }}</h1>
-            <p class="text-sm text-gray-500">
-                #{{ $doc->id }} · {{ number_format($doc->size_bytes / 1024, 1) }} KB
-                · {{ $doc->created_at?->format('d/m/Y H:i') }}
-            </p>
-        </div>
-        <div class="flex gap-2">
-            <a href="/ocr/history" wire:navigate
-               class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-                Xem lịch sử
-            </a>
-            <a href="/ocr" wire:navigate
-               class="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">
-                ← Upload tài liệu khác
-            </a>
-        </div>
+    <div>
+        <h1 class="text-2xl font-semibold">{{ $doc->original_name }}</h1>
+        <p class="text-sm text-gray-500">
+            #{{ $doc->id }} · {{ number_format($doc->size_bytes / 1024, 1) }} KB
+            @if ($extraction && $extraction->page_count > 0)
+                · {{ $extraction->page_count }} trang
+            @endif
+            · {{ $doc->created_at?->format('d/m/Y H:i') }}
+        </p>
     </div>
 
     @if ($doc->status === 'failed')
+        @php
+            $errMsg = (string) ($doc->error_message ?? '');
+            if (str_starts_with($errMsg, 'Not a document:')) {
+                $vnTitle = 'Đây không phải tài liệu được hỗ trợ';
+                $vnHint = 'Hệ thống nhận diện ảnh tải lên không phải tài liệu (vd ảnh chân dung, phong cảnh, screenshot…). Vui lòng upload tài liệu cần OCR như CCCD, hộ chiếu, hợp đồng, hóa đơn…';
+                $detail = trim(substr($errMsg, strlen('Not a document:')));
+            } elseif (str_starts_with($errMsg, 'Extractor declined:')) {
+                $vnTitle = 'Hệ thống trích xuất đã từ chối xử lý';
+                $vnHint = 'Ảnh có thể quá mờ, bị che một phần hoặc không đủ thông tin để bóc tách. Vui lòng thử lại với ảnh rõ hơn.';
+                $detail = trim(substr($errMsg, strlen('Extractor declined:')));
+            } elseif (str_contains($errMsg, 'vượt giới hạn')) {
+                $vnTitle = 'File PDF vượt giới hạn trang';
+                $vnHint = 'Vui lòng tách file thành nhiều file nhỏ hơn rồi upload lại.';
+                $detail = $errMsg;
+            } else {
+                $vnTitle = 'Không xử lý được tài liệu này';
+                $vnHint = 'Có thể do dịch vụ OCR đang gặp sự cố hoặc file bị lỗi. Vui lòng thử lại hoặc liên hệ kỹ thuật nếu vấn đề tiếp diễn.';
+                $detail = $errMsg;
+            }
+        @endphp
         <div class="rounded-md bg-red-50 border border-red-200 p-4">
-            <p class="font-semibold text-red-800">Không xử lý được tài liệu này</p>
-            <p class="text-sm text-red-700 mt-1">
-                Tài liệu có thể không phải loại được hỗ trợ, ảnh quá mờ, hoặc dịch vụ OCR
-                đang gặp sự cố. Vui lòng thử lại với file khác hoặc liên hệ kỹ thuật nếu
-                vấn đề tiếp diễn.
-            </p>
+            <p class="font-semibold text-red-800">{{ $vnTitle }}</p>
+            <p class="text-sm text-red-700 mt-1">{{ $vnHint }}</p>
+            @if ($detail)
+                <details class="mt-2">
+                    <summary class="text-xs text-red-600 cursor-pointer hover:underline select-none">
+                        Chi tiết kỹ thuật
+                    </summary>
+                    <p class="text-xs text-red-700 mt-1 font-mono break-words">{{ $detail }}</p>
+                </details>
+            @endif
         </div>
     @elseif ($doc->status === 'processing' || $doc->status === 'pending')
         <div class="rounded-md bg-blue-50 border border-blue-200 p-4">
@@ -51,6 +66,7 @@
         @php
             $docTypeLabels = [
                 'cccd' => 'CCCD/CMND', 'passport' => 'Hộ chiếu',
+                'national_id_foreign' => 'CMND nước ngoài',
                 'gpkd' => 'Giấy phép kinh doanh',
                 'contract_vi' => 'Hợp đồng (VI)', 'contract_en' => 'Hợp đồng (EN)',
                 'contract_zh' => 'Hợp đồng (ZH)', 'invoice' => 'Hóa đơn',
@@ -92,6 +108,38 @@
             </div>
         </div>
 
+        {{-- File gốc — toggle xem ảnh/PDF đã upload --}}
+        <div x-data="{ open: false }" class="bg-white border border-gray-200 rounded-md">
+            <div class="px-4 py-2 flex items-center justify-between">
+                <button type="button"
+                        x-on:click="open = !open"
+                        class="flex items-center gap-2 font-semibold text-gray-900 hover:text-gray-700">
+                    <span class="inline-block w-3 text-center text-xs leading-none transition-transform"
+                          :class="open ? 'rotate-90' : ''">▶</span>
+                    File gốc
+                    <span class="text-xs font-normal text-gray-500">({{ $doc->mime }})</span>
+                </button>
+                <a href="{{ route('ocr.file', $doc->id) }}" target="_blank" rel="noopener"
+                   class="text-xs text-blue-600 hover:underline">Mở tab mới ↗</a>
+            </div>
+            <div x-show="open" x-cloak class="border-t border-gray-200 p-3 bg-gray-50">
+                @if (str_starts_with($doc->mime, 'image/'))
+                    <img src="{{ route('ocr.file', $doc->id) }}"
+                         alt="{{ $doc->original_name }}"
+                         class="max-w-full max-h-[600px] mx-auto rounded shadow-sm">
+                @elseif ($doc->mime === 'application/pdf')
+                    <embed src="{{ route('ocr.file', $doc->id) }}"
+                           type="application/pdf"
+                           class="w-full h-[700px] rounded">
+                @else
+                    <p class="text-sm text-gray-500 text-center py-4">
+                        Định dạng {{ $doc->mime }} không xem trực tiếp được —
+                        <a href="{{ route('ocr.file', $doc->id) }}" target="_blank" class="text-blue-600 hover:underline">tải về</a>
+                    </p>
+                @endif
+            </div>
+        </div>
+
         @php
             $warningLabels = [
                 'CRITICAL_RULE_FAILED' => 'Sai định dạng',
@@ -124,25 +172,37 @@
             </div>
         @endif
 
-        {{-- Translation tiếng Việt — show prominent cho non-VN docs --}}
+        {{-- Translation tiếng Việt — show prominent cho non-VN docs, có thể thu gọn --}}
         @if ($extraction->translation_vi && $extraction->language_detected !== 'vi')
-            <div class="bg-blue-50 border border-blue-200 rounded-md">
-                <div class="px-4 py-2 border-b border-blue-200 flex items-center justify-between">
-                    <h2 class="font-semibold text-blue-900">
+            <div x-data="{ open: true }" class="bg-blue-50 border border-blue-200 rounded-md">
+                <div class="px-4 py-2 border-b border-blue-200 flex items-center justify-between"
+                     :class="open ? 'border-b' : 'border-b-0'">
+                    <button type="button"
+                            x-on:click="open = !open"
+                            class="flex items-center gap-2 font-semibold text-blue-900 hover:text-blue-700">
+                        <span class="inline-block w-3 text-center text-xs leading-none transition-transform"
+                              :class="open ? 'rotate-90' : ''">▶</span>
                         Bản dịch tiếng Việt
-                        <span class="ml-2 text-xs font-normal text-blue-700">
+                        <span class="text-xs font-normal text-blue-700">
                             (gốc: {{ $langLabels[$extraction->language_detected] ?? strtoupper($extraction->language_detected) }})
                         </span>
-                    </h2>
+                    </button>
                     <button type="button"
                             x-data="{ copied: false }"
-                            x-on:click="navigator.clipboard.writeText(@js($extraction->translation_vi)).then(() => { copied = true; setTimeout(() => copied = false, 1500); })"
+                            x-on:click.stop="navigator.clipboard.writeText(@js($extraction->translation_vi)).then(() => { copied = true; setTimeout(() => copied = false, 1500); })"
                             class="rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700">
                         <span x-show="!copied">Sao chép bản dịch</span>
                         <span x-show="copied" x-cloak>✓ Đã chép</span>
                     </button>
                 </div>
-                <pre class="px-4 py-3 text-sm whitespace-pre-wrap font-sans max-h-72 overflow-y-auto text-blue-900">{{ $extraction->translation_vi }}</pre>
+                <div x-show="open" x-cloak>
+                @include('livewire.partials.paged-text', [
+                    'text' => $extraction->translation_vi,
+                    'colorClass' => 'text-blue-900',
+                    'fontClass' => 'font-sans',
+                    'maxHeight' => 'max-h-72',
+                ])
+                </div>
             </div>
         @endif
 
@@ -213,13 +273,22 @@
                                     @disabled($state['action'] !== null)
                                     class="w-full rounded border-gray-200 text-sm px-2 py-1 focus:border-gray-400 focus:ring-0 disabled:bg-gray-50"
                                 >
+                                @php
+                                    $kvEntry = $doc->extraction->key_values[$key] ?? null;
+                                    $translatedVi = is_array($kvEntry) ? ($kvEntry['value_translated_vi'] ?? null) : null;
+                                @endphp
+                                @if ($translatedVi)
+                                    <p class="mt-1 text-xs text-gray-500 leading-snug">
+                                        🌐 {{ $translatedVi }}
+                                    </p>
+                                @endif
                             </td>
                             <td class="px-4 py-2 text-right align-middle">
                                 <span class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium {{ $confColor }}">
                                     {{ number_format($conf * 100, 0) }}%
                                 </span>
                             </td>
-                            <td class="px-4 py-2 text-right space-x-1 align-middle">
+                            <td class="px-4 py-2 align-middle whitespace-nowrap">
                                 @if ($state['action'])
                                     @php
                                         $actionLabels = [
@@ -229,32 +298,36 @@
                                             'mark_wrong' => 'Đã báo sai',
                                         ];
                                     @endphp
-                                    <span class="text-xs text-gray-500">✓ {{ $actionLabels[$state['action']] ?? $state['action'] }}</span>
-                                    <button type="button"
-                                            wire:click="rollbackAction(@js($key))"
-                                            wire:loading.attr="disabled"
-                                            wire:target="rollbackAction"
-                                            title="Hoàn tác để thao tác lại"
-                                            class="ml-1 rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-50">
-                                        ↶ Hoàn tác
-                                    </button>
+                                    <div class="flex items-center justify-end gap-2 flex-nowrap">
+                                        <span class="text-xs text-gray-500 whitespace-nowrap">✓ {{ $actionLabels[$state['action']] ?? $state['action'] }}</span>
+                                        <button type="button"
+                                                wire:click="rollbackAction(@js($key))"
+                                                wire:loading.attr="disabled"
+                                                wire:target="rollbackAction"
+                                                title="Hoàn tác để thao tác lại"
+                                                class="shrink-0 rounded border border-gray-300 px-1.5 py-0.5 text-xs text-gray-600 hover:bg-gray-50 whitespace-nowrap">
+                                            ↶ Hoàn tác
+                                        </button>
+                                    </div>
                                 @else
-                                    <button type="button"
-                                            x-on:click="doCopy()"
-                                            class="rounded bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800">
-                                        <span x-show="!copied">Sao chép</span>
-                                        <span x-show="copied" x-cloak>✓ Đã chép</span>
-                                    </button>
-                                    <button type="button"
-                                            x-on:click="doSkip()"
-                                            class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50">
-                                        Bỏ qua
-                                    </button>
-                                    <button type="button"
-                                            x-on:click="doWrong()"
-                                            class="rounded border border-red-300 text-red-600 px-2 py-1 text-xs hover:bg-red-50">
-                                        Báo sai
-                                    </button>
+                                    <div class="flex items-center justify-end gap-1 flex-nowrap">
+                                        <button type="button"
+                                                x-on:click="doCopy()"
+                                                class="shrink-0 rounded bg-gray-900 px-2 py-1 text-xs font-medium text-white hover:bg-gray-800 whitespace-nowrap">
+                                            <span x-show="!copied">Sao chép</span>
+                                            <span x-show="copied" x-cloak>✓ Đã chép</span>
+                                        </button>
+                                        <button type="button"
+                                                x-on:click="doSkip()"
+                                                class="shrink-0 rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 whitespace-nowrap">
+                                            Bỏ qua
+                                        </button>
+                                        <button type="button"
+                                                x-on:click="doWrong()"
+                                                class="shrink-0 rounded border border-red-300 text-red-600 px-2 py-1 text-xs hover:bg-red-50 whitespace-nowrap">
+                                            Báo sai
+                                        </button>
+                                    </div>
                                 @endif
                             </td>
                         </tr>
@@ -314,7 +387,14 @@
             <summary class="cursor-pointer px-4 py-2 font-medium text-gray-900">
                 Toàn bộ nội dung tài liệu ({{ number_format(strlen($extraction->text_full)) }} ký tự)
             </summary>
-            <pre class="px-4 py-3 border-t border-gray-200 text-xs whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">{{ $extraction->text_full }}</pre>
+            <div class="border-t border-gray-200">
+                @include('livewire.partials.paged-text', [
+                    'text' => $extraction->text_full,
+                    'colorClass' => 'text-gray-800',
+                    'fontClass' => 'font-mono text-xs',
+                    'maxHeight' => 'max-h-96',
+                ])
+            </div>
         </details>
     @endif
 </div>

@@ -22,63 +22,70 @@ class Stage4PiiMaskerService
     {
         $detected = [];
 
-        // CCCD 12 digits — keep 6 + 3, mask 3 in middle
+        // AC R6: PII masking giữ 4 ký tự cuối, vd 0123456789 → ******6789.
+        // Apply uniformly cho CCCD/Passport/Phone/MST/Account number.
+
+        // CCCD 12 digits → mask 8 + keep 4
         $text = preg_replace_callback(
-            '/\b(\d{6})(\d{3})(\d{3})\b/',
+            '/\b(\d{8})(\d{4})\b/',
             function ($m) use (&$detected) {
                 $detected['cccd_12'] = ($detected['cccd_12'] ?? 0) + 1;
-                return $m[1] . '***' . $m[3];
+                return str_repeat('*', 8) . $m[2];
             },
             $text,
         );
 
-        // Passport VN (1 uppercase letter + 7 digits)
+        // Passport VN (1 uppercase letter + 7 digits) → mask all but last 4
         $text = preg_replace_callback(
-            '/\b([A-Z])(\d{2})\d{2}(\d{3})\b/',
+            '/\b([A-Z])(\d{3})(\d{4})\b/',
             function ($m) use (&$detected) {
                 $detected['passport'] = ($detected['passport'] ?? 0) + 1;
-                return $m[1] . $m[2] . '**' . $m[3];
+                return str_repeat('*', 4) . $m[3];
             },
             $text,
         );
 
-        // Phone VN — 10 digits 03/05/07/08/09 → keep 3 + mask 4 + keep 3
+        // Phone VN — 10 digits 03/05/07/08/09 → mask 6 + keep 4
         $text = preg_replace_callback(
-            '/\b(0[35789]\d)(\d{4})(\d{3})\b/',
+            '/\b(0[35789]\d{2})(\d{2})(\d{4})\b/',
             function ($m) use (&$detected) {
                 $detected['phone_vn'] = ($detected['phone_vn'] ?? 0) + 1;
-                return $m[1] . '****' . $m[3];
+                return str_repeat('*', 6) . $m[3];
             },
             $text,
         );
 
-        // Email — keep first char + domain
+        // Email — keep last 4 chars before @ + full domain (giảm leak)
         $text = preg_replace_callback(
-            '/\b([a-zA-Z0-9._-])([a-zA-Z0-9._-]+)(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/',
+            '/\b([a-zA-Z0-9._-]+)(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/',
             function ($m) use (&$detected) {
                 $detected['email'] = ($detected['email'] ?? 0) + 1;
-                return $m[1] . '***' . $m[3];
+                $local = $m[1];
+                $len = strlen($local);
+                if ($len <= 4) {
+                    return $local . $m[2];
+                }
+                return str_repeat('*', $len - 4) . substr($local, -4) . $m[2];
             },
             $text,
         );
 
-        // MST 10 digits (optional -xxx suffix). Run after CCCD to avoid double-match.
-        // Need negative lookbehind for 12 digits (CCCD already masked to ***)
+        // MST 10 digits (optional -xxx suffix) → mask 6 + keep 4
         $text = preg_replace_callback(
-            '/(?<!\d)(\d{4})(\d{4})(\d{2})(-\d{3})?(?!\d)/',
+            '/(?<!\d)(\d{6})(\d{4})(-\d{3})?(?!\d)/',
             function ($m) use (&$detected) {
                 $detected['mst'] = ($detected['mst'] ?? 0) + 1;
-                return $m[1] . '****' . $m[3] . ($m[4] ?? '');
+                return str_repeat('*', 6) . $m[2] . ($m[3] ?? '');
             },
             $text,
         );
 
-        // Account number 12-16 digits — best-effort, after CCCD/MST masked
+        // Account number 11-19 digits → mask all but last 4 (after CCCD/Phone/MST)
         $text = preg_replace_callback(
-            '/(?<!\d)(\d{4})(\d{4,8})(\d{4})(?!\d)/',
+            '/(?<!\d)(\d{7,15})(\d{4})(?!\d)/',
             function ($m) use (&$detected) {
                 $detected['account_number'] = ($detected['account_number'] ?? 0) + 1;
-                return $m[1] . str_repeat('*', strlen($m[2])) . $m[3];
+                return str_repeat('*', strlen($m[1])) . $m[2];
             },
             $text,
         );

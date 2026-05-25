@@ -28,7 +28,7 @@ class Stage1ClassifierService
             modelLogicalName: 'classifier',
             systemPrompt: $this->systemPrompt(),
             userContent: $userContent,
-            maxTokens: 600,
+            maxTokens: (int) config('ocr.max_tokens.classifier', 600),
         );
 
         $parsed = ContentBlocks::extractJson($response['content']);
@@ -78,8 +78,9 @@ CRITICAL RULES:
 
 Taxonomy (use exactly these values for document_type): {$taxonomy}.
 Doc-type meanings:
-- cccd: Vietnamese citizen ID card (CCCD/CMND)
-- passport: passport
+- cccd: Vietnamese citizen ID card (CCCD/CMND) — Vietnamese government issued, "Căn cước công dân" or "Chứng minh nhân dân" header, 12-digit ID number
+- national_id_foreign: National ID card from non-Vietnam country — Chinese 居民身份证, Japanese マイナンバーカード, Korean 주민등록증, etc. Looks like ID card but ID format differs (not 12 digits) and not Vietnamese language. NOT a passport.
+- passport: passport booklet (multi-page document with photo + visa pages)
 - gpkd: business license / giấy phép kinh doanh
 - contract_vi/_en/_zh: contract in that language
 - invoice: hóa đơn
@@ -109,6 +110,9 @@ Few-shot examples:
 
 CCCD VN happy path:
 {"document_detected":true,"document_type":"cccd","language_detected":"vi","image_quality_note":"Clear front-side Vietnamese CCCD","extraction_strategy_hint":"Header has so_cccd (12 digits), ho_ten, ngay_sinh, ngay_cap","classifier_confidence":0.97}
+
+Chinese national ID (居民身份证):
+{"document_detected":true,"document_type":"national_id_foreign","language_detected":"zh","image_quality_note":"Front-side Chinese resident ID card with photo and 18-digit ID number","extraction_strategy_hint":"Extract id_number (18 digits), full_name (Han chars + pinyin), date_of_birth, nationality=China, gender, ethnicity, address","classifier_confidence":0.96}
 
 Ambiguous contract:
 {"document_detected":true,"document_type":"contract_vi","language_detected":"vi","image_quality_note":"Vietnamese contract, generic structure","extraction_strategy_hint":"Could be labor_contract if labor-related dominate. Default extract parties+dates+value","classifier_confidence":0.65}

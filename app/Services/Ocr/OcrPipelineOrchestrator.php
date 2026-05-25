@@ -20,8 +20,10 @@ class OcrPipelineOrchestrator
         private Stage1ClassifierService $stage1,
         private Stage2VisionExtractorService $stage2,
         private Stage3ValidatorService $stage3,
+        private Stage3CrossFieldValidator $stage3c,
         private Stage4PiiMaskerService $stage4,
         private Stage5ConfidenceAggregator $stage5,
+        private PdfPageCounter $pageCounter,
     ) {}
 
     public function run(int $documentId): void
@@ -39,7 +41,7 @@ class OcrPipelineOrchestrator
         $this->audit->log([
             'document_id' => $doc->id,
             'stage' => 0,
-            'event' => 'pipeline_started',
+            'event_name' => 'pipeline_started',
             'payload' => ['mime' => $doc->mime, 'size_bytes' => $doc->size_bytes],
         ]);
         Log::info('ocr.pipeline.started', [
@@ -51,12 +53,31 @@ class OcrPipelineOrchestrator
         try {
             $absolutePath = $this->storage->absolutePath($doc->storage_path);
 
+            // ---- Stage 0.5: page count enforcement (AC-02 + cost guard) ----
+            $pageCount = $this->pageCounter->count($absolutePath, $doc->mime);
+            $maxPages = (int) config('ocr.max_pages', 20);
+            $this->audit->log([
+                'document_id' => $doc->id,
+                'stage' => 0,
+                'event_name' => 'page_count_checked',
+                'payload' => ['page_count' => $pageCount, 'max_pages' => $maxPages],
+            ]);
+
+            if ($pageCount > $maxPages) {
+                $this->documents->updateStatus(
+                    $doc->id,
+                    OcrDocument::STATUS_FAILED,
+                    "PDF có {$pageCount} trang vượt giới hạn {$maxPages} trang. Vui lòng tách file.",
+                );
+                return;
+            }
+
             // ---- Stage 1 ---- Classifier
             $cls = $this->stage1->classify($absolutePath, $doc->mime);
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 1,
-                'event' => 'classifier_done',
+                'event_name' => 'classifier_done',
                 'payload' => [
                     'document_type' => $cls['document_type'],
                     'language' => $cls['language_detected'],
@@ -92,7 +113,7 @@ class OcrPipelineOrchestrator
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 2,
-                'event' => 'extractor_done',
+                'event_name' => 'extractor_done',
                 'payload' => [
                     'document_type_actual' => $ext['document_type_actual'],
                     'language' => $ext['language_detected'],
@@ -131,7 +152,7 @@ class OcrPipelineOrchestrator
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 3,
-                'event' => 'validator_done',
+                'event_name' => 'validator_done',
                 'payload' => [
                     'rule_pass_count' => count(array_filter($val['per_field'], fn ($f) => $f['rule_passed'])),
                     'rule_fail_count' => count(array_filter($val['per_field'], fn ($f) => ! $f['rule_passed'])),
@@ -143,13 +164,29 @@ class OcrPipelineOrchestrator
                 'claude_model' => $val['_meta']['judge_model'] ?? null,
             ]);
 
+            // ---- Stage 3c ---- Cross-field logic validator (deterministic, no LLM)
+            $crossField = $this->stage3c->validate(
+                $keyValuesRaw,
+                $ext['document_type_actual'] ?? $docType,
+            );
+            $this->audit->log([
+                'document_id' => $doc->id,
+                'stage' => 3,
+                'event_name' => 'cross_field_done',
+                'payload' => [
+                    'has_logic_error' => $crossField['has_logic_error'],
+                    'warning_count' => count($crossField['warnings']),
+                    'codes' => array_column($crossField['warnings'], 'code'),
+                ],
+            ]);
+
             // ---- Stage 4 ---- PII masker (runs on RAW text + raw key_values)
             $textMasked = $this->stage4->maskText($ext['raw_text']);
             $kvMasked = $this->stage4->maskKeyValues($keyValuesRaw);
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 4,
-                'event' => 'pii_masker_done',
+                'event_name' => 'pii_masker_done',
                 'payload' => [
                     'text_pii_detected' => $textMasked['detected'],
                     'kv_pii_detected' => $kvMasked['detected'],
@@ -165,15 +202,34 @@ class OcrPipelineOrchestrator
                 criticalFieldKeys: $criticalFields,
                 imageQualityNote: $cls['image_quality_note'] ?? $ext['image_quality_note'] ?? null,
             );
+
+            // Merge Stage 3c cross-field warnings + force requires_review nếu có logic error
+            foreach ($crossField['warnings'] as $w) {
+                $agg['warnings'][] = [
+                    'field' => $w['fields'][0] ?? '_global',
+                    'code' => $w['code'],
+                    'msg' => $w['msg'],
+                ];
+            }
+            if ($crossField['has_logic_error']) {
+                $agg['requires_review'] = true;
+                // Hạ overall_confidence 15% (penalty cứng cho logic mismatch)
+                $agg['overall_confidence'] = round($agg['overall_confidence'] * 0.85, 3);
+                if ($agg['quality'] === 'high') {
+                    $agg['quality'] = 'medium';
+                }
+            }
+
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 5,
-                'event' => 'aggregator_done',
+                'event_name' => 'aggregator_done',
                 'payload' => [
                     'overall_confidence' => $agg['overall_confidence'],
                     'quality' => $agg['quality'],
                     'requires_review' => $agg['requires_review'],
                     'warning_count' => count($agg['warnings']),
+                    'cross_field_logic_error' => $crossField['has_logic_error'],
                 ],
             ]);
 
@@ -183,10 +239,12 @@ class OcrPipelineOrchestrator
                 'document_id' => $doc->id,
                 'language_detected' => $ext['language_detected'] ?? $language,
                 'doc_type' => $ext['document_type_actual'] ?? $docType,
-                'page_count' => 1,
+                'page_count' => $pageCount,
                 'text_full' => $ext['raw_text'],
                 'text_full_masked' => $textMasked['masked'],
-                'key_values' => $agg['key_values_raw_map'],
+                // Persist NESTED Stage 2 output (value + value_translated_vi + critical + flagged + validation_passed)
+                // V1 Resource cần shape này để expose per-field translation + flagged. Livewire UI handle cả 2 shape.
+                'key_values' => $ext['key_values'],
                 'key_values_masked' => $kvMasked['masked_kv'],
                 'translation_vi' => $ext['translation_vi'],
                 'confidence_overall' => $agg['overall_confidence'],
@@ -208,7 +266,7 @@ class OcrPipelineOrchestrator
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 6,
-                'event' => 'extraction_persisted',
+                'event_name' => 'extraction_persisted',
                 'payload' => [
                     'quality' => $agg['quality'],
                     'requires_review' => $agg['requires_review'],
@@ -217,6 +275,10 @@ class OcrPipelineOrchestrator
             ]);
 
             $this->documents->updateStatus($doc->id, OcrDocument::STATUS_DONE);
+            $this->documents->markProcessedAt(
+                $doc->id,
+                (int) config('ocr.idempotency_window_hours', 24),
+            );
             Log::info('ocr.pipeline.done', [
                 'document_id' => $doc->id,
                 'doc_type' => $ext['document_type_actual'] ?? $docType,
@@ -235,7 +297,7 @@ class OcrPipelineOrchestrator
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 1,
-                'event' => 'pipeline_failed',
+                'event_name' => 'pipeline_failed',
                 'payload' => [
                     'exception' => class_basename($e),
                     'message' => substr($e->getMessage(), 0, 500),

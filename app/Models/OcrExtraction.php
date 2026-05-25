@@ -15,11 +15,8 @@ class OcrExtraction extends Model
         'language_detected',
         'doc_type',
         'page_count',
-        'text_full',
-        'text_full_masked',
         'key_values',
         'key_values_masked',
-        'translation_vi',
         'confidence_overall',
         'confidence_per_field',
         'quality',
@@ -42,5 +39,25 @@ class OcrExtraction extends Model
     public function document()
     {
         return $this->belongsTo(OcrDocument::class, 'document_id');
+    }
+
+    public function text()
+    {
+        return $this->hasOne(OcrExtractionText::class, 'extraction_id');
+    }
+
+    public function getTextFullAttribute(): ?string
+    {
+        return $this->text?->text_full;
+    }
+
+    public function getTextFullMaskedAttribute(): ?string
+    {
+        return $this->text?->text_full_masked;
+    }
+
+    public function getTranslationViAttribute(): ?string
+    {
+        return $this->text?->translation_vi;
     }
 }

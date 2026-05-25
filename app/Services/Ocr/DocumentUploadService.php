@@ -26,14 +26,40 @@ class DocumentUploadService
     {
         $hash = $this->storage->hashFile($file);
 
+        // AC-E05: idempotency 24h. Trả về cached khi cùng hash + còn trong window.
+        $cached = $this->documents->findCachedByHash($hash);
+        if ($cached) {
+            $this->audit->log([
+                'document_id' => $cached->id,
+                'stage' => 0,
+                'event_name' => 'upload_cache_hit',
+                'payload' => ['hash' => $hash, 'cached_until' => $cached->cached_until?->toIso8601String()],
+            ]);
+            $cached->load('extraction');
+            return [$cached, true];
+        }
+
+        // Fallback: cùng hash đã tồn tại nhưng cache hết hạn (>24h) hoặc status failed/processing.
+        // Hash UNIQUE constraint trong DB → không thể tạo doc mới cùng hash. Luôn return existing.
         $existing = $this->documents->findByHash($hash);
         if ($existing) {
             $this->audit->log([
                 'document_id' => $existing->id,
                 'stage' => 0,
-                'event' => 'upload_dedupe_hit',
-                'payload' => ['hash' => $hash],
+                'event_name' => 'upload_dedupe_hit_non_cached',
+                'payload' => ['hash' => $hash, 'status' => $existing->status],
             ]);
+
+            // Nếu doc cũ status=done nhưng cached_until expired → extend cache window
+            // để lần upload tiếp theo trong 24h tới hit cached path nhanh.
+            if ($existing->status === OcrDocument::STATUS_DONE) {
+                $this->documents->markProcessedAt(
+                    $existing->id,
+                    (int) config('ocr.idempotency_window_hours', 24),
+                );
+            }
+
+            $existing->load('extraction');
             return [$existing, true];
         }
 
@@ -53,7 +79,7 @@ class DocumentUploadService
             $this->audit->log([
                 'document_id' => $doc->id,
                 'stage' => 0,
-                'event' => 'upload_persisted',
+                'event_name' => 'upload_persisted',
                 'payload' => [
                     'mime' => $doc->mime,
                     'size_bytes' => $doc->size_bytes,

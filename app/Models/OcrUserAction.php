@@ -21,9 +21,6 @@ class OcrUserAction extends Model
         'document_id',
         'field_key',
         'action_type',
-        'original_value',
-        'final_value',
-        'note',
         'session_id',
         'duration_ms',
         'ksnb_user_label',
@@ -40,5 +37,25 @@ class OcrUserAction extends Model
     public function document()
     {
         return $this->belongsTo(OcrDocument::class, 'document_id');
+    }
+
+    public function text()
+    {
+        return $this->hasOne(OcrUserActionText::class, 'action_id');
+    }
+
+    public function getOriginalValueAttribute(): ?string
+    {
+        return $this->text?->original_value;
+    }
+
+    public function getFinalValueAttribute(): ?string
+    {
+        return $this->text?->final_value;
+    }
+
+    public function getNoteAttribute(): ?string
+    {
+        return $this->text?->note;
     }
 }

@@ -41,7 +41,7 @@ class ProcessOcrDocument implements ShouldQueue
         $audit->log([
             'document_id' => $this->documentId,
             'stage' => 1,
-            'event' => 'job_failed_final',
+            'event_name' => 'job_failed_final',
             'payload' => [
                 'exception' => class_basename($e),
                 'message' => substr($e->getMessage(), 0, 500),

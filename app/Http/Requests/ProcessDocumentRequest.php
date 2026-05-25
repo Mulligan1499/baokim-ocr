@@ -15,7 +15,7 @@ class ProcessDocumentRequest extends FormRequest
 
     public function rules(): array
     {
-        $maxKb = config('ocr.max_file_size_mb', 25) * 1024;
+        $maxKb = config('ocr.max_file_size_mb', 10) * 1024;
         $allowed = implode(',', config('ocr.allowed_mimes'));
 
         return [

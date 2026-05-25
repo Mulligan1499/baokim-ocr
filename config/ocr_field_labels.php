@@ -49,6 +49,11 @@ return [
     'expiry_date' => 'Ngày hết hạn',
     'sex' => 'Giới tính',
 
+    // ===== CMND nước ngoài (national_id_foreign) — TQ/JP/KR/etc. =====
+    'id_number' => 'Số CMND',
+    'gender' => 'Giới tính',
+    'ethnicity' => 'Dân tộc',
+
     // ===== Giấy phép kinh doanh (GPKD) =====
     'mst' => 'Mã số thuế',
     'tax_code' => 'Mã số thuế',
@@ -145,7 +150,6 @@ return [
     'unit_price' => 'Đơn giá',
     'quantity' => 'Số lượng',
     'goods_description' => 'Mô tả hàng hóa',
-    'item_description' => 'Mô tả mặt hàng',
     'model' => 'Model',
 
     // ===== Tờ khai hải quan =====
@@ -209,10 +213,6 @@ return [
     'total_assets' => 'Tổng tài sản',
     'total_liabilities' => 'Tổng nợ phải trả',
     'equity' => 'Vốn chủ sở hữu',
-
-    // ===== Customs declaration extra =====
-    'goods_description' => 'Mô tả hàng hóa',
-    'total_value' => 'Tổng giá trị',
 
     // ===== Bill of Lading extra =====
     'gross_weight' => 'Trọng lượng cả bì',

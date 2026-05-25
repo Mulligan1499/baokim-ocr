@@ -3,7 +3,7 @@
 API OCR cho team KSNB (Kiểm soát nội bộ) Baokim — onboarding merchant.
 Nhận ảnh/PDF (VI/EN/ZH), trả về text đầy đủ + key-values + bản dịch tiếng Việt + confidence per field + audit trail.
 
-> Dự án cuộc thi **Claude Skill** — Baokim. Sản phẩm OCR pipeline 7 stages, design + implementation đều sinh ra qua skills tại [.claude/skills/](.claude/skills/).
+> Dự án cuộc thi **Claude Skill** — Baokim. Sản phẩm OCR pipeline 7 stages, design + implementation đều sinh ra qua **12 skills** tại [.claude/skills/](.claude/skills/) (92% reusable cross-domain). Xem [skill ecosystem README](.claude/skills/README.md) để navigate.
 
 ## Kiến trúc — Harness 7 stages
 
@@ -164,7 +164,7 @@ Integration test ([tests/Feature/Api/OcrPipelineIntegrationTest.php](tests/Featu
 
 ## Bài học kinh nghiệm (cho slide demo)
 
-- **Skills shape design**: 8 skills trong [.claude/skills/](.claude/skills/) encode tacit knowledge (anti-hallucination patterns, BKM standards, confidence aggregation). Mỗi stage map vào 1 skill — tránh "AI tự nghĩ" tự do, code có khung sườn nhất quán.
+- **Skills shape design**: 12 skills trong [.claude/skills/](.claude/skills/) encode tacit knowledge (anti-hallucination patterns, BKM standards, confidence aggregation). 4 tầng reusability (cross-domain / Baokim platform / pattern / project-specific) — 11/12 reusable ngoài project này. Mỗi stage map vào 1 skill — tránh "AI tự nghĩ" tự do, code có khung sườn nhất quán.
 - **Skip Claude API ≠ skip Claude Skill**: cuộc thi yêu cầu use **Claude Skill (SKILL.md design pattern)**, không bắt buộc dùng Claude API trong product. Switch sang Gemini cho M2/M3 vì credit Claude chưa được Sếp cấp — nhưng prompt + workflow design vẫn từ skill Claude.
 - **Provider abstraction**: bắt đầu code Anthropic-specific, đổi yêu cầu → refactor về `LlmClient` interface. Swap qua env không sửa code. Bài học: prematurely abstract = waste, late abstract = manageable.
 - **Anti-hallucination phải có negative few-shot**: Stage 2 prompt encode pattern "smudged CCCD → return `value=""`" trực tiếp trong examples. Không có → model bịa.

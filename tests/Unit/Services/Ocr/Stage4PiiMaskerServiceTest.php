@@ -18,22 +18,24 @@ class Stage4PiiMaskerServiceTest extends TestCase
     public function test_masks_cccd_12_digits(): void
     {
         $result = $this->masker->maskText('CCCD 001234567890 cấp ngày');
-        $this->assertSame('CCCD 001234***890 cấp ngày', $result['masked']);
+        // AC R6: giữ 4 ký tự cuối, mask phần đầu
+        $this->assertSame('CCCD ********7890 cấp ngày', $result['masked']);
         $this->assertSame(1, $result['detected']['cccd_12']);
     }
 
     public function test_masks_vn_phone(): void
     {
         $result = $this->masker->maskText('Liên hệ 0987654321 hoặc 0901234567');
-        $this->assertStringContainsString('098****321', $result['masked']);
-        $this->assertStringContainsString('090****567', $result['masked']);
+        $this->assertStringContainsString('******4321', $result['masked']);
+        $this->assertStringContainsString('******4567', $result['masked']);
         $this->assertSame(2, $result['detected']['phone_vn']);
     }
 
     public function test_masks_email(): void
     {
         $result = $this->masker->maskText('email: john.doe@example.com');
-        $this->assertSame('email: j***@example.com', $result['masked']);
+        // AC R6: giữ 4 ký tự cuối của local part
+        $this->assertSame('email: ****.doe@example.com', $result['masked']);
         $this->assertSame(1, $result['detected']['email']);
     }
 
@@ -65,9 +67,9 @@ class Stage4PiiMaskerServiceTest extends TestCase
             'email' => 'jane@example.com',
             'ho_ten' => 'Nguyễn Văn An', // best-effort name masker
         ]);
-        $this->assertSame('001234***890', $result['masked_kv']['so_cccd']);
-        $this->assertStringContainsString('098****321', $result['masked_kv']['phone']);
-        $this->assertStringContainsString('j***@', $result['masked_kv']['email']);
+        $this->assertSame('********7890', $result['masked_kv']['so_cccd']);
+        $this->assertStringContainsString('******4321', $result['masked_kv']['phone']);
+        $this->assertStringContainsString('jane@', $result['masked_kv']['email']);
         $this->assertArrayHasKey('cccd_12', $result['detected']);
         $this->assertArrayHasKey('phone_vn', $result['detected']);
     }

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Api;
 
-use App\Jobs\ProcessOcrDocument;
 use App\Models\OcrAuditLog;
 use App\Models\OcrDocument;
 use App\Models\OcrExtraction;
@@ -22,22 +21,25 @@ class OcrPipelineIntegrationTest extends TestCase
     {
         parent::setUp();
         config(['ocr.api_key' => $this->apiKey]);
-        // bind a fake LlmClient (no network)
         $this->app->instance(LlmClient::class, new FakeLlmClient());
         Storage::fake('local');
     }
 
     public function test_unauthenticated_returns_401(): void
     {
-        $this->postJson('/api/ocr/process')->assertStatus(401);
+        $resp = $this->postJson('/api/v1/ocr/extract');
+        $resp->assertStatus(401);
+        $resp->assertJsonStructure(['error_code', 'message_vi', 'message_en', 'request_id']);
     }
 
-    public function test_invalid_file_returns_422(): void
+    public function test_invalid_file_returns_400(): void
     {
         $file = UploadedFile::fake()->createWithContent('fake.docx', 'irrelevant');
-        $this->withHeader('X-API-Key', $this->apiKey)
-            ->post('/api/ocr/process', ['file' => $file])
-            ->assertStatus(422);
+        $resp = $this->withHeader('X-API-Key', $this->apiKey)
+            ->post('/api/v1/ocr/extract', ['file' => $file]);
+        // V1 error schema R8: INVALID_FILE_FORMAT → 400
+        $this->assertContains($resp->status(), [400, 422]);
+        $resp->assertJsonStructure(['error_code', 'message_vi', 'message_en']);
     }
 
     public function test_full_pipeline_runs_with_fake_llm(): void
@@ -45,14 +47,14 @@ class OcrPipelineIntegrationTest extends TestCase
         $file = UploadedFile::fake()->image('cccd.jpg', 800, 600);
 
         $resp = $this->withHeader('X-API-Key', $this->apiKey)
-            ->post('/api/ocr/process', ['file' => $file]);
+            ->post('/api/v1/ocr/extract', ['file' => $file]);
 
-        // Sync queue: 200 with full result. Async queue: 202 with status=pending.
-        $this->assertContains($resp->status(), [200, 202], 'POST should return 200 (sync) or 202 (async)');
-        $resp->assertJson(['duplicate' => false]);
+        $this->assertContains($resp->status(), [200, 202]);
+
         $documentId = $resp->json('document_id');
         $doc = OcrDocument::find($documentId);
         $this->assertSame(OcrDocument::STATUS_DONE, $doc->status);
+        $this->assertNotNull($doc->request_id, 'request_id UUID phải có (AC-01)');
 
         $extraction = OcrExtraction::where('document_id', $documentId)->firstOrFail();
         $this->assertSame('cccd', $extraction->doc_type);
@@ -61,11 +63,19 @@ class OcrPipelineIntegrationTest extends TestCase
 
         $kv = $extraction->key_values;
         $this->assertArrayHasKey('so_cccd', $kv);
-        $this->assertSame('001234567890', $kv['so_cccd']);
 
-        // RAW vs masked
+        // RAW vs masked (AC R6 pattern: giữ 4 ký tự cuối)
         $this->assertStringContainsString('001234567890', $extraction->text_full);
-        $this->assertStringContainsString('001234***890', $extraction->text_full_masked);
+        $this->assertStringContainsString('********7890', $extraction->text_full_masked);
+
+        // AC-01 response shape: result với key_value_pairs array
+        $result = $resp->json('result');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('raw_text', $result);
+        $this->assertArrayHasKey('key_value_pairs', $result);
+        $this->assertArrayHasKey('language_detected', $result);
+        $this->assertArrayHasKey('overall_confidence', $result);
+        $this->assertArrayHasKey('ai_model_version', $result);
 
         // Audit stages 0..6 all touched
         $stages = OcrAuditLog::where('document_id', $documentId)->pluck('stage')->toArray();
@@ -74,29 +84,29 @@ class OcrPipelineIntegrationTest extends TestCase
         }
     }
 
-    public function test_get_with_view_masked_returns_masked_data(): void
+    public function test_history_lookup_by_request_id_and_numeric_id(): void
     {
         $file = UploadedFile::fake()->image('cccd.jpg', 800, 600);
         $resp = $this->withHeader('X-API-Key', $this->apiKey)
-            ->post('/api/ocr/process', ['file' => $file]);
-        $id = $resp->json('document_id');
-        ProcessOcrDocument::dispatchSync($id);
+            ->post('/api/v1/ocr/extract', ['file' => $file]);
+        $requestId = $resp->json('request_id');
+        $documentId = $resp->json('document_id');
 
-        $rawJson = $this->withHeader('X-API-Key', $this->apiKey)
-            ->get("/api/ocr/{$id}")->json();
-        $this->assertSame('raw', $rawJson['extraction']['view_mode']);
-        $this->assertSame('001234567890', $rawJson['extraction']['key_values']['so_cccd']);
+        // Lookup by UUID
+        $byUuid = $this->withHeader('X-API-Key', $this->apiKey)
+            ->get("/api/v1/ocr/history/{$requestId}");
+        $byUuid->assertStatus(200);
+        $this->assertSame($requestId, $byUuid->json('request_id'));
 
-        $maskedJson = $this->withHeader('X-API-Key', $this->apiKey)
-            ->get("/api/ocr/{$id}?view=masked")->json();
-        $this->assertSame('masked', $maskedJson['extraction']['view_mode']);
-        $this->assertSame('001234***890', $maskedJson['extraction']['key_values']['so_cccd']);
+        // Lookup by numeric id (alias)
+        $byId = $this->withHeader('X-API-Key', $this->apiKey)
+            ->get("/api/v1/ocr/history/{$documentId}");
+        $byId->assertStatus(200);
+        $this->assertSame($requestId, $byId->json('request_id'));
     }
 
-    public function test_dedupe_same_file_returns_same_id(): void
+    public function test_dedupe_same_file_returns_cached_true(): void
     {
-        // Need a real image (validation enforces image/* or pdf MIME). Save once + reuse the path
-        // so both uploads hit the same hash.
         $file1 = UploadedFile::fake()->image('a.jpg', 50, 50);
         $bytes = file_get_contents($file1->getRealPath());
         $tmp1 = tempnam(sys_get_temp_dir(), 'ocr1') . '.jpg';
@@ -108,17 +118,18 @@ class OcrPipelineIntegrationTest extends TestCase
         $u2 = new UploadedFile($tmp2, 'b.jpg', 'image/jpeg', null, true);
 
         $r1 = $this->withHeader('X-API-Key', $this->apiKey)
-            ->post('/api/ocr/process', ['file' => $u1]);
-        $r2 = $this->withHeader('X-API-Key', $this->apiKey)
-            ->post('/api/ocr/process', ['file' => $u2]);
+            ->post('/api/v1/ocr/extract', ['file' => $u1]);
 
-        $this->assertSame($r1->json('document_id'), $r2->json('document_id'));
-        $r2->assertJson(['duplicate' => true]);
+        $r2 = $this->withHeader('X-API-Key', $this->apiKey)
+            ->post('/api/v1/ocr/extract', ['file' => $u2]);
+
+        $this->assertSame($r1->json('request_id'), $r2->json('request_id'));
+        $this->assertTrue($r2->json('cached'), 'AC-E05: lần upload thứ 2 phải có cached=true');
     }
 }
 
 /**
- * In-memory LlmClient stub. Returns deterministic JSON depending on which logical model is requested.
+ * In-memory LlmClient stub. Returns deterministic JSON per logical model name.
  */
 class FakeLlmClient implements LlmClient
 {

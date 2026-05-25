@@ -34,12 +34,36 @@ class Stage3ValidatorService
         string $docType,
         ?string $language = 'vi',
     ): array {
-        // 3a — Rule-based
+        // 3a — Rule-based (luôn chạy, deterministic)
         $ruleResults = $this->ruleValidator->validate($keyValuesRaw, $docType);
 
-        // 3b — LLM judge (independent call, NO image — text-only sanity check)
-        $judgeResults = $this->callJudge($keyValuesRaw, $stage2SelfConf, $docType, $language);
-        $judgeMap = $judgeResults['per_field'];
+        // 3b — LLM judge (skip nếu doc type có pipeline_skip = ['stage3b'])
+        $skipStages = config("ocr_doc_taxonomy.{$docType}.pipeline_skip", []);
+        $skipJudge = in_array('stage3b', $skipStages, true);
+
+        if ($skipJudge) {
+            // Fallback: dùng stage2_self_conf làm judge_confidence để Stage 5 vẫn tính weight được
+            $judgeMap = [];
+            foreach ($keyValuesRaw as $key => $_) {
+                $judgeMap[$key] = [
+                    'judge_confidence' => (float) ($stage2SelfConf[$key] ?? 0.7),
+                    'judge_reason' => 'Bỏ qua LLM judge (loại tài liệu đơn giản — Stage 3a đủ).',
+                    'judge_action' => 'keep',
+                ];
+            }
+            $judgeMeta = [
+                'judge_latency_ms' => 0,
+                'judge_input_tokens' => 0,
+                'judge_output_tokens' => 0,
+                'judge_model' => 'skipped',
+                'judge_provider' => 'none',
+                'skipped' => true,
+            ];
+        } else {
+            $judgeResults = $this->callJudge($keyValuesRaw, $stage2SelfConf, $docType, $language);
+            $judgeMap = $judgeResults['per_field'];
+            $judgeMeta = $judgeResults['_meta'];
+        }
 
         $perField = [];
         foreach ($keyValuesRaw as $key => $value) {
@@ -60,7 +84,7 @@ class Stage3ValidatorService
 
         return [
             'per_field' => $perField,
-            '_meta' => $judgeResults['_meta'],
+            '_meta' => $judgeMeta,
         ];
     }
 
@@ -92,7 +116,7 @@ TXT),
             modelLogicalName: 'judge',
             systemPrompt: $this->judgeSystemPrompt(),
             userContent: $userContent,
-            maxTokens: 2000,
+            maxTokens: (int) config('ocr.max_tokens.judge', 4000),
         );
 
         $parsed = ContentBlocks::extractJson($response['content']);
@@ -145,11 +169,22 @@ Return JSON shape:
     {
       "key": "<field key>",
       "judge_confidence": 0.0-1.0,
-      "judge_reason": "1 short sentence",
+      "judge_reason": "1 short sentence IN VIETNAMESE",
       "judge_action": "keep | flag_low_conf | discard"
     }
   ]
 }
+
+CRITICAL LANGUAGE RULE:
+- The `judge_reason` field MUST be written in **VIETNAMESE** (tiếng Việt), regardless of document language.
+- This message will be shown directly to Vietnamese KSNB compliance staff.
+- Be concise: 1 short sentence, max 15 words.
+- Examples of correct Vietnamese reasons:
+  - "Định dạng MST không chuẩn — VN MST phải có 10 hoặc 13 chữ số."
+  - "Số CCCD đủ 12 chữ số, hợp lệ."
+  - "Trống — extractor không đọc được, giữ nguyên."
+  - "Ngày sinh nghi vấn — năm trong tương lai."
+  - "Số tiền không có đơn vị tiền tệ."
 
 OUTPUT VALID JSON ONLY. No prose outside JSON.
 PROMPT;

@@ -3,22 +3,23 @@
 namespace App\Services\Ocr;
 
 /**
- * Stage 5 — Multi-signal confidence aggregator (from skill ocr-confidence-aggregator).
+ * Stage 5 — Confidence aggregator (per AC R3 + AC-AI-01).
  *
  * Inputs (per field): self_report (Stage 2), rule_passed (Stage 3a), judge_confidence (Stage 3b).
  * Output: aggregated_key_values[] + overall_confidence + quality bucket + requires_review + warnings.
  *
- * Formula: final = self×0.3 + rule×0.4 + judge×0.3
- *   IF critical AND rule_passed=false → cap final at 0.4
- * Overall: weighted average by critical(2)/normal(1).
+ * Per AC R3 — `overall_confidence = weighted average của các field confidence (critical 2×, normal 1×)`.
+ * Per AC-AI-01 — per-field confidence là số thật, overall = weighted avg những số đó.
+ *
+ * Confidence policy:
+ *  - Exposed confidence = self_report (Stage 2)
+ *  - IF critical AND rule_passed=false → cap exposed confidence at 0.4 (R4 < 0.5 → flagged)
+ *  - Stage 3b judge + Stage 3a rule dùng làm signal cho warning + review priority, KHÔNG mix vào số confidence
+ *
  * Buckets: high ≥ 0.85 | medium 0.5..0.85 | low < 0.5 (requires_review when < 0.85).
  */
 class Stage5ConfidenceAggregator
 {
-    private const WEIGHT_SELF = 0.3;
-    private const WEIGHT_RULE = 0.4;
-    private const WEIGHT_JUDGE = 0.3;
-
     private const RULE_FAIL_CAP_CRITICAL = 0.4;
 
     private const WEIGHT_FIELD_CRITICAL = 2;
@@ -70,13 +71,13 @@ class Stage5ConfidenceAggregator
             $rule = $entry ? (bool) $entry['rule_passed'] : true;
             $judge = $entry ? (float) $entry['judge_confidence'] : 0.5;
 
-            $final = ($self * self::WEIGHT_SELF)
-                + (($rule ? 1.0 : 0.0) * self::WEIGHT_RULE)
-                + ($judge * self::WEIGHT_JUDGE);
+            // AC R3/AC-AI-01: confidence exposed = self_report (Stage 2). Stage 3 chỉ dùng làm signal.
+            $exposedConfidence = $self;
 
+            // Critical + rule fail → cap confidence < 0.5 để trigger R4 flag (KSNB phải review)
             if ($isCritical && ! $rule) {
                 $criticalFailures[] = $key;
-                $final = min($final, self::RULE_FAIL_CAP_CRITICAL);
+                $exposedConfidence = min($self, self::RULE_FAIL_CAP_CRITICAL);
             }
 
             // Signal disagreement: |self - judge| > 0.5
@@ -85,7 +86,7 @@ class Stage5ConfidenceAggregator
             }
 
             $fieldWeight = $isCritical ? self::WEIGHT_FIELD_CRITICAL : self::WEIGHT_FIELD_NORMAL;
-            $weightedSum += $final * $fieldWeight;
+            $weightedSum += $exposedConfidence * $fieldWeight;
             $totalWeight += $fieldWeight;
 
             $fieldWarnings = [];
@@ -93,7 +94,7 @@ class Stage5ConfidenceAggregator
                 $fieldWarnings[] = ['code' => 'CRITICAL_RULE_FAILED', 'msg' => $entry['rule_reason'] ?? ''];
             }
             if (abs($self - $judge) > 0.5) {
-                $fieldWarnings[] = ['code' => 'SELF_VS_JUDGE_DISAGREE', 'msg' => sprintf('self=%.2f judge=%.2f', $self, $judge)];
+                $fieldWarnings[] = ['code' => 'SELF_VS_JUDGE_DISAGREE', 'msg' => sprintf('Hai bước AI chấm điểm khác nhau: %.2f vs %.2f', $self, $judge)];
             }
             if ($entry && ($entry['judge_action'] ?? 'keep') === 'flag_low_conf') {
                 $fieldWarnings[] = ['code' => 'JUDGE_FLAGGED', 'msg' => $entry['judge_reason'] ?? ''];
@@ -101,17 +102,17 @@ class Stage5ConfidenceAggregator
 
             $aggregated[$key] = [
                 'value' => $value,
-                'final_confidence' => round($final, 3),
+                'final_confidence' => round($exposedConfidence, 3),
                 'signals' => [
                     'self_report' => round($self, 3),
                     'rule_passed' => $rule,
                     'judge_confidence' => round($judge, 3),
                 ],
                 'critical' => $isCritical,
-                'flagged' => $final < $thresholdMedMin,
+                'flagged' => $exposedConfidence < $thresholdMedMin,
                 'warnings' => $fieldWarnings,
             ];
-            $confidencePerField[$key] = round($final, 3);
+            $confidencePerField[$key] = round($exposedConfidence, 3);
 
             if (! empty($fieldWarnings)) {
                 array_push($warningsFields, ...array_map(fn ($w) => $w + ['field' => $key], $fieldWarnings));
@@ -125,15 +126,15 @@ class Stage5ConfidenceAggregator
         // Document-level warnings
         $docWarnings = [];
         if ($overall < $thresholdMedMin) {
-            $docWarnings[] = ['field' => '_global', 'code' => 'LOW_CONFIDENCE', 'msg' => sprintf('Overall confidence %.2f below %.2f', $overall, $thresholdMedMin)];
+            $docWarnings[] = ['field' => '_global', 'code' => 'LOW_CONFIDENCE', 'msg' => sprintf('Độ tin cậy tổng thấp (%.2f / ngưỡng %.2f) — cần KSNB kiểm tra lại.', $overall, $thresholdMedMin)];
         } elseif ($overall < $thresholdHigh) {
-            $docWarnings[] = ['field' => '_global', 'code' => 'MEDIUM_CONFIDENCE', 'msg' => sprintf('Overall confidence %.2f below %.2f — review recommended', $overall, $thresholdHigh)];
+            $docWarnings[] = ['field' => '_global', 'code' => 'MEDIUM_CONFIDENCE', 'msg' => sprintf('Độ tin cậy tổng trung bình (%.2f / ngưỡng cao %.2f) — nên rà soát.', $overall, $thresholdHigh)];
         }
         if (! empty($criticalFailures)) {
-            $docWarnings[] = ['field' => '_global', 'code' => 'CRITICAL_FIELDS_FAILED', 'msg' => 'Failed critical fields: ' . implode(', ', $criticalFailures)];
+            $docWarnings[] = ['field' => '_global', 'code' => 'CRITICAL_FIELDS_FAILED', 'msg' => 'Trường quan trọng sai định dạng: ' . implode(', ', $criticalFailures)];
         }
         if (! empty($signalDisagreements)) {
-            $docWarnings[] = ['field' => '_global', 'code' => 'MULTI_SIGNAL_DISAGREE', 'msg' => 'Disagree on: ' . implode(', ', $signalDisagreements)];
+            $docWarnings[] = ['field' => '_global', 'code' => 'MULTI_SIGNAL_DISAGREE', 'msg' => 'AI chấm điểm không đồng nhất ở các trường: ' . implode(', ', $signalDisagreements)];
         }
         if ($imageQualityNote) {
             $lower = mb_strtolower($imageQualityNote);

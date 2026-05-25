@@ -59,7 +59,7 @@ class Stage3RuleValidatorTest extends TestCase
     {
         $r = $this->validator->validate(['so_cccd' => ''], 'cccd');
         $this->assertTrue($r['so_cccd']['rule_passed']);
-        $this->assertStringContainsString('empty value', $r['so_cccd']['rule_reason']);
+        $this->assertStringContainsString('Trống', $r['so_cccd']['rule_reason']);
     }
 
     public function test_date_dd_mm_yyyy_passes(): void

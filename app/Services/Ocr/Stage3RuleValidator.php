@@ -29,7 +29,7 @@ class Stage3RuleValidator
     private function check(string $key, string $value): array
     {
         if ($value === '') {
-            return ['rule_passed' => true, 'rule_reason' => 'empty value (extractor opted out)'];
+            return ['rule_passed' => true, 'rule_reason' => 'Trống — extractor không đọc được, giữ nguyên.'];
         }
 
         $lower = strtolower($key);
@@ -39,7 +39,7 @@ class Stage3RuleValidator
             $ok = (bool) preg_match('/^\d{12}$/', $value);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'CCCD 12 digits OK' : 'CCCD must be exactly 12 digits',
+                'rule_reason' => $ok ? 'CCCD đủ 12 chữ số.' : 'CCCD phải đúng 12 chữ số.',
             ];
         }
 
@@ -48,7 +48,7 @@ class Stage3RuleValidator
             $ok = (bool) preg_match('/^[A-Z]{1,2}\d{6,8}$/i', $value);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'Passport format OK' : 'Passport: 1-2 letters + 6-8 digits',
+                'rule_reason' => $ok ? 'Định dạng hộ chiếu hợp lệ.' : 'Hộ chiếu phải có 1-2 chữ cái và 6-8 chữ số.',
             ];
         }
 
@@ -57,7 +57,7 @@ class Stage3RuleValidator
             $ok = (bool) preg_match('/^\d{10}(-\d{3})?$/', $value);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'MST format OK' : 'MST must be 10 digits (optional -xxx)',
+                'rule_reason' => $ok ? 'Định dạng MST hợp lệ.' : 'MST phải có 10 chữ số (kèm "-xxx" nếu có).',
             ];
         }
 
@@ -67,7 +67,7 @@ class Stage3RuleValidator
             $ok = (bool) preg_match('/^0[35789]\d{8}$/', $normalized);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'VN phone format OK' : 'VN phone: 10 digits starting 03/05/07/08/09',
+                'rule_reason' => $ok ? 'Số điện thoại hợp lệ.' : 'SĐT phải có 10 chữ số bắt đầu 03/05/07/08/09.',
             ];
         }
 
@@ -76,7 +76,7 @@ class Stage3RuleValidator
             $ok = (bool) filter_var($value, FILTER_VALIDATE_EMAIL);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'Email OK' : 'Invalid email format',
+                'rule_reason' => $ok ? 'Email hợp lệ.' : 'Định dạng email không đúng.',
             ];
         }
 
@@ -91,12 +91,12 @@ class Stage3RuleValidator
             $ok = (bool) preg_match('/^\d+(\.\d+)?$/', $stripped);
             return [
                 'rule_passed' => $ok,
-                'rule_reason' => $ok ? 'Numeric amount OK' : 'Amount must be numeric (optional decimals)',
+                'rule_reason' => $ok ? 'Số tiền hợp lệ.' : 'Số tiền phải là số (có thể có phần thập phân).',
             ];
         }
 
         // Unknown field type — pass through (we don't enforce)
-        return ['rule_passed' => true, 'rule_reason' => 'no rule (pass-through)'];
+        return ['rule_passed' => true, 'rule_reason' => 'Không có quy tắc kiểm tra cho trường này.'];
     }
 
     private function checkDate(string $value): array
@@ -107,11 +107,11 @@ class Stage3RuleValidator
             if ($dt instanceof \DateTimeImmutable && $dt->format($fmt) === $value) {
                 $year = (int) $dt->format('Y');
                 if ($year < 1900 || $dt > new \DateTimeImmutable('+1 day')) {
-                    return ['rule_passed' => false, 'rule_reason' => "Date out of range (year={$year})"];
+                    return ['rule_passed' => false, 'rule_reason' => "Ngày tháng nằm ngoài khoảng hợp lệ (năm {$year})."];
                 }
-                return ['rule_passed' => true, 'rule_reason' => "Date {$fmt} OK"];
+                return ['rule_passed' => true, 'rule_reason' => "Ngày tháng hợp lệ ({$fmt})."];
             }
         }
-        return ['rule_passed' => false, 'rule_reason' => 'Unrecognized date format'];
+        return ['rule_passed' => false, 'rule_reason' => 'Định dạng ngày tháng không nhận diện được.'];
     }
 }

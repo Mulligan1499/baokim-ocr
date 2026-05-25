@@ -35,10 +35,12 @@ class ExtractionResult extends Component
         $this->sessionId = (string) Str::uuid();
 
         $keyValues = $this->doc->extraction?->key_values ?? [];
-        foreach ($keyValues as $key => $value) {
+        foreach ($keyValues as $key => $entry) {
+            // Support cả nested {value, ...} (new) lẫn scalar (legacy data trước fix)
+            $raw = is_array($entry) ? ($entry['value'] ?? '') : $entry;
             $this->fieldState[$key] = [
-                'value' => (string) $value,
-                'edited_value' => (string) $value,
+                'value' => (string) $raw,
+                'edited_value' => (string) $raw,
                 'action' => null,
             ];
         }

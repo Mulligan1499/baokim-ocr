@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Taxonomy 13 doc types KSNB Baokim — list field cần bóc tách theo khảo sát.
+ * Taxonomy 15 doc types KSNB Baokim — list field cần bóc tách theo khảo sát.
  *
  * Mỗi doc type 2 list:
  *  - critical: bắt buộc phải có. Sai format → confidence cap 0.4. Weight 2 trong
@@ -35,6 +35,8 @@ return [
             'ton_giao', 'que_quan', 'noi_thuong_tru', 'co_gia_tri_den',
             'dac_diem_nhan_dang',
         ],
+        // ID format đơn giản, Stage 3a regex + Stage 3c date-logic đủ → skip LLM judge tiết kiệm cost
+        'pipeline_skip' => ['stage3b'],
     ],
 
     'passport' => [
@@ -46,6 +48,22 @@ return [
             'surname', 'given_name', 'place_of_birth', 'date_of_issue',
             'place_of_issue', 'issuing_authority', 'sex',
         ],
+        'pipeline_skip' => ['stage3b'],
+    ],
+
+    // CMND/national ID nước ngoài (TQ 居民身份证, JP マイナンバーカード, KR 주민등록증, etc.)
+    // Khác cccd ở chỗ format ID number không bắt buộc 12 chữ số VN, có thêm nationality
+    'national_id_foreign' => [
+        'label' => 'CMND nước ngoài',
+        // Note: LLM hay emit `name` thay vì `full_name` cho ID nước ngoài → cả 2 đều critical
+        'critical' => [
+            'id_number', 'full_name', 'name', 'date_of_birth', 'nationality',
+        ],
+        'normal' => [
+            'gender', 'place_of_birth', 'address', 'issuing_authority',
+            'date_of_issue', 'expiry_date', 'ethnicity',
+        ],
+        'pipeline_skip' => ['stage3b'],
     ],
 
     'gpkd' => [

@@ -1,6 +1,7 @@
 @php
     $docTypeLabels = [
         'cccd' => 'CCCD/CMND', 'passport' => 'Hộ chiếu',
+        'national_id_foreign' => 'CMND nước ngoài',
         'gpkd' => 'Giấy phép kinh doanh',
         'contract_vi' => 'Hợp đồng (VI)', 'contract_en' => 'Hợp đồng (EN)',
         'contract_zh' => 'Hợp đồng (ZH)', 'invoice' => 'Hóa đơn',
@@ -22,15 +23,9 @@
 @endphp
 
 <div class="space-y-6">
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-semibold">Lịch sử tài liệu</h1>
-            <p class="text-sm text-gray-500">Tổng cộng {{ $page->total() }} tài liệu</p>
-        </div>
-        <a href="/ocr" wire:navigate
-           class="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-800">
-            + Upload tài liệu mới
-        </a>
+    <div>
+        <h1 class="text-2xl font-semibold">Lịch sử tài liệu</h1>
+        <p class="text-sm text-gray-500">Tổng cộng {{ $page->total() }} tài liệu</p>
     </div>
 
     <div class="flex items-center gap-3 text-sm">
@@ -84,7 +79,12 @@
                                class="text-gray-900 hover:underline font-medium">
                                 {{ Str::limit($doc->original_name, 40) }}
                             </a>
-                            <p class="text-xs text-gray-500">{{ number_format($doc->size_bytes / 1024, 1) }} KB</p>
+                            <p class="text-xs text-gray-500">
+                                {{ number_format($doc->size_bytes / 1024, 1) }} KB
+                                @if ($ext && $ext->page_count > 0)
+                                    · {{ $ext->page_count }} trang
+                                @endif
+                            </p>
                         </td>
                         <td class="px-4 py-2 text-xs text-gray-700">
                             {{ $docTypeLabels[$ext?->doc_type] ?? $ext?->doc_type ?? '—' }}

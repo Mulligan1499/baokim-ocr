@@ -23,12 +23,22 @@ class UploadDocument extends Component
     public bool $busy = false;
     public ?string $errorMessage = null;
 
+    /**
+     * Livewire hook — chạy ngay khi user chọn file mới qua input.
+     * Clear message lỗi của lần upload trước, tránh KSNB nhầm.
+     */
+    public function updatedFile(): void
+    {
+        $this->errorMessage = null;
+    }
+
     public function submit(DocumentUploadService $uploadService): void
     {
+        // Clear TRƯỚC validate — phòng case validate fail vẫn còn message cũ
+        $this->errorMessage = null;
         $this->validate();
 
         $this->busy = true;
-        $this->errorMessage = null;
 
         try {
             @set_time_limit(0);

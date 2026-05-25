@@ -5,8 +5,11 @@ return [
     'storage_disk' => env('FILESYSTEM_DISK', 'local'),
     'storage_path_prefix' => 'ocr',
 
-    'max_file_size_mb' => (int) env('OCR_MAX_FILE_SIZE_MB', 25),
+    'max_file_size_mb' => (int) env('OCR_MAX_FILE_SIZE_MB', 10),
     'max_pages' => (int) env('OCR_MAX_PAGES', 20),
+    'idempotency_window_hours' => (int) env('OCR_IDEMPOTENCY_HOURS', 24),
+
+    'classifier_unknown_threshold' => (float) env('OCR_CLASSIFIER_UNKNOWN_THRESHOLD', 0.5),
 
     'allowed_mimes' => [
         'image/jpeg',
@@ -26,7 +29,7 @@ return [
     'api_key_header' => 'X-API-Key',
 
     'doc_types' => [
-        'cccd', 'passport', 'gpkd',
+        'cccd', 'national_id_foreign', 'passport', 'gpkd',
         'contract_vi', 'contract_en', 'contract_zh',
         'invoice', 'legal_doc',
         'customs_declaration', 'bill_of_lading',
@@ -38,6 +41,14 @@ return [
     'languages_supported' => ['vi', 'en', 'zh'],
 
     'llm_provider' => env('OCR_LLM_PROVIDER', 'gemini'),  // anthropic | gemini
+
+    // Output token cap per stage. Đủ rộng cho tài liệu TQ dày (raw_text + translation_vi tốn token).
+    // Gemini 2.5 Flash hỗ trợ output tới 65536 tokens.
+    'max_tokens' => [
+        'classifier' => (int) env('OCR_MAX_TOKENS_CLASSIFIER', 600),
+        'extractor' => (int) env('OCR_MAX_TOKENS_EXTRACTOR', 16000),
+        'judge' => (int) env('OCR_MAX_TOKENS_JUDGE', 4000),
+    ],
 
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
@@ -64,8 +75,9 @@ return [
     ],
 
     'confidence_thresholds' => [
-        'high' => 0.85,
-        'medium_min' => 0.50,
+        'high' => 0.85,           // ≥ 0.85 → quality=high
+        'medium_min' => 0.50,     // < 0.5 → quality=low
+        'flag_below' => 0.70,     // R4: < 0.7 → field flagged để KSNB review
     ],
 
     'queue' => env('OCR_QUEUE', 'default'),

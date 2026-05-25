@@ -42,7 +42,7 @@ class Stage2VisionExtractorService
             modelLogicalName: 'extractor',
             systemPrompt: $systemPrompt,
             userContent: $userContent,
-            maxTokens: 8000,
+            maxTokens: (int) config('ocr.max_tokens.extractor', 16000),
         );
 
         $parsed = ContentBlocks::extractJson($response['content']);
@@ -177,7 +177,16 @@ Workflow
 3. Build `key_values[]` — for each expected critical/normal field emit an entry. If field not visible emit value="", confidence=0.
 4. Compute `overall_confidence_self_report` ∈ [0,1].
 5. `warnings_self_report`: array using codes above.
-6. If translate=true: provide `translation_vi` (full Vietnamese translation of raw_text) and `value_translated_vi` per text field.
+6. If translate=true (language ∈ {en, zh, mixed}): provide BOTH
+   (a) `translation_vi` — full Vietnamese translation of raw_text (whole document)
+   (b) `value_translated_vi` per TEXT field in `key_values` — MANDATORY, không skip
+       - Text fields (name, address, gender, occupation, place_of_birth, ethnicity, ...) → DỊCH sang tiếng Việt
+         Ví dụ ZH: gender='男' → value_translated_vi='Nam'; ethnicity='土家' → value_translated_vi='Thổ Gia'
+         Ví dụ EN: occupation='Engineer' → value_translated_vi='Kỹ sư'
+       - Chinese names → value_translated_vi = phiên âm Hán-Việt (vd '王小明' → 'Vương Tiểu Minh', '彭友' → 'Bành Hữu')
+       - Numbers/IDs/codes/dates → value_translated_vi=null (KHÔNG dịch)
+       - Lý do: downstream user copy/paste TỪNG FIELD vào hệ thống, không copy text dài.
+7. **PAGE MARKERS** (PDF multi-page only — image hoặc PDF 1 trang BỎ QUA bước này): nếu input PDF có ≥ 2 trang, INSERT marker chính xác `=== Trang N ===` (N từ 1) trên một dòng riêng TRƯỚC nội dung của mỗi trang trong CẢ `raw_text` lẫn `translation_vi`. Không thêm marker cho image hoặc PDF 1 trang. Marker dùng để UI tách block hiển thị — sai format = UI render lỗi.
 
 JSON schema:
 {

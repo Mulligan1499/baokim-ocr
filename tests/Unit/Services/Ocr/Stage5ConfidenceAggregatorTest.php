@@ -27,13 +27,53 @@ class Stage5ConfidenceAggregatorTest extends TestCase
             criticalFieldKeys: ['so_cccd', 'ho_ten'],
         );
 
-        // (0.97*0.3 + 1.0*0.4 + 0.95*0.3) = 0.291 + 0.4 + 0.285 = 0.976
-        // (0.95*0.3 + 1.0*0.4 + 0.95*0.3) = 0.285 + 0.4 + 0.285 = 0.97
-        $this->assertEqualsWithDelta(0.976, $r['aggregated']['so_cccd']['final_confidence'], 0.005);
-        $this->assertEqualsWithDelta(0.97, $r['aggregated']['ho_ten']['final_confidence'], 0.005);
+        // AC R3/AC-AI-01: exposed confidence = self_report (Stage 2). Rule + judge → signals only.
+        $this->assertEqualsWithDelta(0.97, $r['aggregated']['so_cccd']['final_confidence'], 0.005);
+        $this->assertEqualsWithDelta(0.95, $r['aggregated']['ho_ten']['final_confidence'], 0.005);
+        // overall = weighted avg of self (critical 2x): (0.97*2 + 0.95*2) / 4 = 0.96
+        $this->assertEqualsWithDelta(0.96, $r['overall_confidence'], 0.005);
         $this->assertSame('high', $r['quality']);
         $this->assertFalse($r['requires_review']);
         $this->assertEmpty($r['review_priority_fields']);
+    }
+
+    public function test_overall_confidence_is_weighted_average_of_self_report(): void
+    {
+        // AC R3 sample TQ_ID_front.jpg: 3 critical + 3 normal, self values per tester bug 4
+        $r = $this->agg->aggregate(
+            keyValuesRaw: [
+                'id_number' => '440101199001011234',  // critical
+                'gender' => '男',                       // normal
+                'ethnicity' => '土家',                  // normal
+                'address' => '广州市天河区',            // normal
+                'full_name' => '彭友',                  // critical
+                'date_of_birth' => '1990-01-01',       // critical
+            ],
+            stage2SelfConf: [
+                'id_number' => 0.964,
+                'gender' => 0.964,
+                'ethnicity' => 0.958,
+                'address' => 0.964,
+                'full_name' => 0.964,
+                'date_of_birth' => 0.561,
+            ],
+            stage3PerField: [
+                'id_number' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.964, 'judge_reason' => 'ok', 'judge_action' => 'keep'],
+                'gender' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.964, 'judge_reason' => 'ok', 'judge_action' => 'keep'],
+                'ethnicity' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.958, 'judge_reason' => 'ok', 'judge_action' => 'keep'],
+                'address' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.964, 'judge_reason' => 'ok', 'judge_action' => 'keep'],
+                'full_name' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.964, 'judge_reason' => 'ok', 'judge_action' => 'keep'],
+                'date_of_birth' => ['rule_passed' => true, 'rule_reason' => 'ok', 'judge_confidence' => 0.561, 'judge_reason' => 'low confidence', 'judge_action' => 'keep'],
+            ],
+            criticalFieldKeys: ['id_number', 'full_name', 'date_of_birth'],
+        );
+
+        // overall = (0.964*2 + 0.964*1 + 0.958*1 + 0.964*1 + 0.964*2 + 0.561*2) / 9 = 7.864/9 = 0.874
+        $this->assertEqualsWithDelta(0.874, $r['overall_confidence'], 0.005);
+        $this->assertEqualsWithDelta(0.561, $r['aggregated']['date_of_birth']['final_confidence'], 0.005);
+        // overall 0.874 > 0.85 nhưng date_of_birth có self=0.561 ∈ [0.5, 0.7) → V1 Resource sẽ flag (AC R4)
+        // requires_review ở Stage 5 chỉ check overall < 0.85; V1 Resource override OR anyFlagged
+        $this->assertFalse($r['requires_review']);
     }
 
     public function test_critical_field_rule_fail_caps_low_and_marks_review(): void
